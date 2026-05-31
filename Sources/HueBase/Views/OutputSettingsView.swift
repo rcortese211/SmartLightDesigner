@@ -245,13 +245,23 @@ struct OutputSettingsView: View {
         appState.bridgeDiscovery.onDiscovered = { bridges in
             if let first = bridges.first {
                 appState.show.hue.bridgeIP = first.ip
-                appState.statusMessage = "Found bridge: \(first.ip)"
+                let names = bridges.map { $0.name }.joined(separator: ", ")
+                appState.statusMessage = bridges.count == 1
+                    ? "Found: \(first.ip)"
+                    : "Found \(bridges.count) bridges — using \(first.ip)"
+                _ = names  // suppress unused warning
             } else {
-                appState.statusMessage = "No Hue bridges found on network"
+                appState.statusMessage = "No Hue bridges found. Enter IP manually."
+            }
+        }
+        appState.bridgeDiscovery.onError = { msg in
+            // Only surface non-trivial errors; mDNS errors are expected on some networks
+            if !msg.contains("mDNS") {
+                appState.statusMessage = "Discovery: \(msg)"
             }
         }
         appState.bridgeDiscovery.discover()
-        appState.statusMessage = "Searching for Hue bridges…"
+        appState.statusMessage = "Scanning local network…"
     }
 
     private func pairHueBridge() {
