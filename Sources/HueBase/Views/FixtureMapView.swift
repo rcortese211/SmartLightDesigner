@@ -5,6 +5,10 @@ struct FixtureMapView: View {
     @State private var selectedFixtureID: UUID?
     @State private var snapEnabled = false
     @State private var snapDivisions: Double = 8
+    @State private var highlightEnabled = false
+    @State private var highlightColor: Color = Color(red: 1.0, green: 0.88, blue: 0.0)
+    @State private var lowlightColor: Color = Color(white: 0.14)
+    @State private var showHighlightPicker = false
 
     var body: some View {
         HSplitView {
@@ -37,10 +41,41 @@ struct FixtureMapView: View {
                     Label("Column", systemImage: "line.3.horizontal")
                 }
                 .help("Arrange all fixtures in a vertical column")
-                Button(action: { arrangeFixtures(mode: .grid) }) {
+                Menu {
+                    Button("Spread (Full)") { arrangeFixtures(mode: .grid, spacing: 1.0) }
+                    Button("Wide")          { arrangeFixtures(mode: .grid, spacing: 0.75) }
+                    Button("Normal")        { arrangeFixtures(mode: .grid, spacing: 0.55) }
+                    Button("Compact")       { arrangeFixtures(mode: .grid, spacing: 0.35) }
+                } label: {
                     Label("Grid", systemImage: "grid")
                 }
                 .help("Arrange all fixtures in a grid")
+                Divider()
+                Button(action: { highlightEnabled.toggle() }) {
+                    Label("Highlight", systemImage: highlightEnabled ? "lightbulb.fill" : "lightbulb")
+                        .foregroundStyle(highlightEnabled ? highlightColor : Color.primary)
+                }
+                .help(highlightEnabled ? "Highlight on — click to disable" : "Highlight selected fixture")
+                if highlightEnabled {
+                    Button(action: { showHighlightPicker.toggle() }) {
+                        Image(systemName: "paintpalette")
+                    }
+                    .help("Customize highlight and lowlight colors")
+                    .popover(isPresented: $showHighlightPicker, arrowEdge: .bottom) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("HIGHLIGHT COLORS")
+                                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                                .kerning(1)
+                            ColorPicker("Highlight (selected)", selection: $highlightColor,
+                                        supportsOpacity: false)
+                            ColorPicker("Lowlight (others)",    selection: $lowlightColor,
+                                        supportsOpacity: false)
+                        }
+                        .padding(16)
+                        .frame(width: 240)
+                    }
+                }
             }
         }
     }
@@ -63,6 +98,10 @@ struct FixtureMapView: View {
                     FixtureMapNode(
                         fixture: fixture,
                         isSelected: fixture.id == selectedFixtureID,
+                        highlightEnabled: highlightEnabled,
+                        isHighlighted: highlightEnabled && fixture.id == selectedFixtureID,
+                        highlightColor: highlightColor,
+                        lowlightColor: lowlightColor,
                         onTap: { selectedFixtureID = fixture.id },
                         onDragEnd: { delta in
                             moveFixture(id: fixture.id, by: delta, in: geo.size)
@@ -150,7 +189,7 @@ struct FixtureMapView: View {
 
     private enum ArrangeMode { case row, column, grid }
 
-    private func arrangeFixtures(mode: ArrangeMode) {
+    private func arrangeFixtures(mode: ArrangeMode, spacing: Double = 1.0) {
         let count = appState.show.fixtures.count
         guard count > 0 else { return }
         switch mode {
@@ -167,11 +206,16 @@ struct FixtureMapView: View {
         case .grid:
             let cols = max(1, Int(ceil(sqrt(Double(count)))))
             let rows = max(1, Int(ceil(Double(count) / Double(cols))))
+            let pad = (1.0 - spacing) / 2.0
             for i in 0..<count {
                 let col = i % cols
                 let row = i / cols
-                appState.show.fixtures[i].positionX = cols > 1 ? Double(col) / Double(cols - 1) : 0.5
-                appState.show.fixtures[i].positionY = rows > 1 ? Double(row) / Double(rows - 1) : 0.5
+                appState.show.fixtures[i].positionX = cols > 1
+                    ? pad + Double(col) / Double(cols - 1) * spacing
+                    : 0.5
+                appState.show.fixtures[i].positionY = rows > 1
+                    ? pad + Double(row) / Double(rows - 1) * spacing
+                    : 0.5
             }
         }
     }
@@ -238,6 +282,10 @@ struct FixtureMapView: View {
 struct FixtureMapNode: View {
     let fixture: Fixture
     let isSelected: Bool
+    let highlightEnabled: Bool
+    let isHighlighted: Bool
+    let highlightColor: Color
+    let lowlightColor: Color
     let onTap: () -> Void
     let onDragEnd: (CGSize) -> Void
 
@@ -245,28 +293,44 @@ struct FixtureMapNode: View {
 
     private let r: CGFloat = 13
 
+    private var fillColor: Color {
+        if highlightEnabled {
+            return isHighlighted ? highlightColor.opacity(0.9) : lowlightColor
+        }
+        return isSelected ? HueBaseTheme.active.opacity(0.85) : HueBaseTheme.purple.opacity(0.55)
+    }
+
+    private var strokeColor: Color {
+        if highlightEnabled {
+            return isHighlighted ? highlightColor : lowlightColor.opacity(0.55)
+        }
+        return isSelected ? HueBaseTheme.active : HueBaseTheme.purple
+    }
+
+    private var labelColor: Color {
+        if highlightEnabled {
+            return isHighlighted ? highlightColor : lowlightColor.opacity(0.7)
+        }
+        return isSelected ? HueBaseTheme.active.opacity(0.9) : HueBaseTheme.purple.opacity(0.65)
+    }
+
     var body: some View {
         ZStack {
             Circle()
-                .fill(isSelected
-                    ? HueBaseTheme.active.opacity(0.85)
-                    : HueBaseTheme.purple.opacity(0.55))
+                .fill(fillColor)
                 .frame(width: r * 2, height: r * 2)
             Circle()
-                .strokeBorder(isSelected ? HueBaseTheme.active : HueBaseTheme.purple,
-                              lineWidth: isSelected ? 2 : 1)
+                .strokeBorder(strokeColor, lineWidth: (isSelected || isHighlighted) ? 2 : 1)
                 .frame(width: r * 2, height: r * 2)
             Text(String(fixture.name.prefix(4)).uppercased())
                 .font(.system(size: 6, weight: .bold, design: .monospaced))
-                .foregroundStyle(Color.white.opacity(0.9))
+                .foregroundStyle(Color.white.opacity(highlightEnabled && !isHighlighted ? 0.3 : 0.9))
                 .lineLimit(1)
         }
         .overlay(alignment: .bottom) {
             Text(fixture.name)
                 .font(.system(size: 7, design: .monospaced))
-                .foregroundStyle(isSelected
-                    ? HueBaseTheme.active.opacity(0.9)
-                    : HueBaseTheme.purple.opacity(0.65))
+                .foregroundStyle(labelColor)
                 .lineLimit(1)
                 .fixedSize()
                 .offset(y: r + 7)
@@ -278,6 +342,7 @@ struct FixtureMapNode: View {
                 .onEnded { val in onDragEnd(val.translation) }
         )
         .onTapGesture { onTap() }
+        .animation(.easeInOut(duration: 0.15), value: highlightEnabled)
         .animation(.none, value: dragOffset)
     }
 }
