@@ -25,9 +25,6 @@ struct ContentView: View {
             }
             ToolbarItemGroup(placement: .primaryAction) {
                 OutputToggleButton()
-                Text(appState.statusMessage)
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(.secondary)
                 Button(action: { showSettings = true }) {
                     Image(systemName: "gearshape")
                         .font(.system(size: 13))

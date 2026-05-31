@@ -3,6 +3,8 @@ import SwiftUI
 struct SettingsSheetView: View {
     @Environment(AppState.self) private var appState
     @Binding var isPresented: Bool
+    @State private var settingsStatus: String = ""
+    @State private var settingsStatusIsError: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,10 +31,32 @@ struct SettingsSheetView: View {
                     .tabItem { Label("Patch", systemImage: "cable.connector") }
                 FixtureMapView()
                     .tabItem { Label("Map", systemImage: "map") }
-                OutputSettingsView()
-                    .tabItem { Label("Output", systemImage: "network") }
+                OutputSettingsView(
+                    statusMessage: $settingsStatus,
+                    statusIsError: $settingsStatusIsError
+                )
+                .tabItem { Label("Output", systemImage: "network") }
             }
             .background(HueBaseTheme.background)
+
+            // Status bar — shows feedback from output/discovery/pairing
+            HStack(spacing: 6) {
+                if !settingsStatus.isEmpty {
+                    Circle()
+                        .fill(settingsStatusIsError ? Color.red : Color(white: 0.4))
+                        .frame(width: 5, height: 5)
+                }
+                Text(settingsStatus.isEmpty ? " " : settingsStatus)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(settingsStatusIsError
+                        ? Color.red.opacity(0.85)
+                        : Color(white: 0.42))
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 5)
+            .background(HueBaseTheme.surfaceHigh)
+            .overlay(alignment: .top) { HueBaseTheme.border.frame(height: 1) }
         }
         .frame(minWidth: 860, minHeight: 580)
         .background(HueBaseTheme.background)

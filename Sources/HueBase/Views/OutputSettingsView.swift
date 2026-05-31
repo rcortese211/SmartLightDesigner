@@ -9,6 +9,8 @@ private enum HuePairingState {
 
 struct OutputSettingsView: View {
     @Environment(AppState.self) private var appState
+    var statusMessage: Binding<String>?
+    var statusIsError: Binding<Bool>?
     @State private var huePairingState: HuePairingState = .idle
     @State private var hueDiscoveryStatus: String = ""
 
@@ -278,6 +280,11 @@ struct OutputSettingsView: View {
         }
     }
 
+    private func setStatus(_ msg: String, isError: Bool = false) {
+        statusMessage?.wrappedValue = msg
+        statusIsError?.wrappedValue = isError
+    }
+
     @ViewBuilder
     private var huePairingIndicator: some View {
         switch huePairingState {
@@ -295,7 +302,7 @@ struct OutputSettingsView: View {
     }
 
     private func discoverHueBridges() {
-        hueDiscoveryStatus = "Scanning local network…"
+        setStatus("Scanning local network…")
         appState.bridgeDiscovery.onDiscovered = { bridges in
             let ipv4Bridges = bridges.filter { $0.ip.contains(".") }
             if let first = ipv4Bridges.first {
@@ -303,16 +310,21 @@ struct OutputSettingsView: View {
                 if current.isEmpty || !current.contains(".") {
                     appState.show.hue.bridgeIP = first.ip
                 }
-                hueDiscoveryStatus = ipv4Bridges.count == 1
+                let msg = ipv4Bridges.count == 1
                     ? "Found: \(first.ip)"
                     : "Found \(ipv4Bridges.count) bridges — using \(first.ip)"
+                hueDiscoveryStatus = msg
+                setStatus(msg)
             } else {
-                hueDiscoveryStatus = "No bridges found. Enter IP manually."
+                let msg = "No bridges found. Enter IP manually."
+                hueDiscoveryStatus = msg
+                setStatus(msg, isError: true)
             }
         }
         appState.bridgeDiscovery.onError = { msg in
             if !msg.contains("mDNS") {
                 hueDiscoveryStatus = "Discovery error: \(msg)"
+                setStatus("Discovery error: \(msg)", isError: true)
             }
         }
         appState.bridgeDiscovery.discover()
@@ -320,13 +332,16 @@ struct OutputSettingsView: View {
 
     private func pairHueBridge() {
         huePairingState = .pairing
+        setStatus("Waiting for bridge…")
         appState.bridgeDiscovery.pair(bridgeIP: appState.show.hue.bridgeIP) { result in
             switch result {
             case .success(let key):
                 appState.show.hue.username = key
                 huePairingState = .success
+                setStatus("Paired successfully — API key saved.")
             case .failure(let err):
                 huePairingState = .failure(err.localizedDescription)
+                setStatus("Pair failed: \(err.localizedDescription)", isError: true)
             }
         }
     }
