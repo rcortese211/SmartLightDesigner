@@ -14,6 +14,7 @@ final class HueBridgeDiscovery {
     var onDiscovered: (([BridgeInfo]) -> Void)?
     var onError: ((String) -> Void)?
 
+    private let bridgeSession = HueBridgeTrustDelegate.makeSession(requestTimeout: 10)
     private var mdnsBrowser: NWBrowser?
     private var pendingConnections: [NWConnection] = []
     private var discovered: [String: BridgeInfo] = [:]   // keyed by IP to deduplicate
@@ -161,10 +162,10 @@ final class HueBridgeDiscovery {
 
     func pair(bridgeIP: String, appName: String = "HueBase",
               completion: @escaping (Result<String, Error>) -> Void) {
-        guard let url = URL(string: "http://\(bridgeIP)/api") else {
+        guard let url = URL(string: "https://\(bridgeIP)/api") else {
             DispatchQueue.main.async {
                 completion(.failure(HueError.bridgeError(
-                    "'\(bridgeIP)' is not a valid IPv4 address. Re-enter or use Discover."
+                    "'\(bridgeIP)' is not a valid bridge address. Re-enter or use Discover."
                 )))
             }
             return
@@ -174,7 +175,7 @@ final class HueBridgeDiscovery {
         req.httpBody = try? JSONSerialization.data(withJSONObject: ["devicetype": appName])
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        URLSession.shared.dataTask(with: req) { data, _, error in
+        bridgeSession.dataTask(with: req) { data, _, error in
             if let error {
                 DispatchQueue.main.async { completion(.failure(error)) }
                 return
@@ -200,8 +201,8 @@ final class HueBridgeDiscovery {
 
     func fetchLights(bridgeIP: String, username: String,
                      completion: @escaping ([String: String]) -> Void) {
-        guard let url = URL(string: "http://\(bridgeIP)/api/\(username)/lights") else { return }
-        URLSession.shared.dataTask(with: url) { data, _, _ in
+        guard let url = URL(string: "https://\(bridgeIP)/api/\(username)/lights") else { return }
+        bridgeSession.dataTask(with: url) { data, _, _ in
             guard let data,
                   let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
             else { DispatchQueue.main.async { completion([:]) }; return }

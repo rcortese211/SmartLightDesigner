@@ -22,10 +22,7 @@ final class PhilipsHueOutput: DMXOutputDriver {
     init(config: HueConfiguration) {
         self.config = config
         self.isEnabled = config.enabled
-        let cfg = URLSessionConfiguration.default
-        cfg.timeoutIntervalForRequest = 0.4
-        cfg.waitsForConnectivity = false
-        self.session = URLSession(configuration: cfg)
+        self.session = HueBridgeTrustDelegate.makeSession(requestTimeout: 0.4)
     }
 
     func start() {
@@ -86,7 +83,7 @@ final class PhilipsHueOutput: DMXOutputDriver {
     }
 
     private func putLightState(lightId: String, body: [String: Any]) {
-        let urlStr = "http://\(config.bridgeIP)/api/\(config.username)/lights/\(lightId)/state"
+        let urlStr = "https://\(config.bridgeIP)/api/\(config.username)/lights/\(lightId)/state"
         guard let url = URL(string: urlStr),
               let data = try? JSONSerialization.data(withJSONObject: body) else { return }
         var req = URLRequest(url: url)
