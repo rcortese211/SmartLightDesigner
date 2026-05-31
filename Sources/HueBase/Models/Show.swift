@@ -13,6 +13,7 @@ struct Show: Codable {
     var hue: HueConfiguration = HueConfiguration()
     var timecode: TimecodeConfiguration = TimecodeConfiguration()
     var effectFolders: [EffectFolder] = []
+    var globalColors: [GlobalColor] = []
     var savedScripts: [SavedScript] = []
     var notes: String = ""
     var createdAt: Date = Date()
@@ -26,6 +27,18 @@ struct Show: Codable {
         let nextNumber = (cues.map(\.number).max() ?? 0) + 1
         let cue = Cue(number: nextNumber, name: "Cue \(Int(nextNumber))", layerSnapshot: layers)
         cues.append(cue)
+    }
+}
+
+struct GlobalColor: Codable, Identifiable, Hashable {
+    let id: UUID
+    var name: String
+    var r: Double
+    var g: Double
+    var b: Double
+
+    init(id: UUID = UUID(), name: String, r: Double, g: Double, b: Double) {
+        self.id = id; self.name = name; self.r = r; self.g = g; self.b = b
     }
 }
 

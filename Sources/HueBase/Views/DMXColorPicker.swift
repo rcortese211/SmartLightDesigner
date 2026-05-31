@@ -10,13 +10,14 @@ import SwiftUI
 
 struct DMXColorPicker: View {
     @Binding var rgb: (r: Double, g: Double, b: Double)
+    @Environment(AppState.self) private var appState
 
     @State private var h: Double = 0
     @State private var s: Double = 1
     @State private var v: Double = 1
-    @State private var rText: String = "255"
-    @State private var gText: String = "0"
-    @State private var bText: String = "0"
+    @State private var showSaveRow = false
+    @State private var saveName = ""
+    @FocusState private var saveFieldFocused: Bool
 
     private let wheelSize: CGFloat = 164
     private let briBarWidth: CGFloat = 18
@@ -151,26 +152,132 @@ struct DMXColorPicker: View {
         }
     }
 
-    // MARK: - Presets
+    // MARK: - Swatches panel (global colors + standard presets)
 
     private var presetGrid: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(spacing: 0) {
+                globalColorsSection
+                Divider().background(Color(white: 0.25)).padding(.vertical, 5)
+                presetsSection
+            }
+        }
+        .frame(width: 84)
+    }
+
+    @ViewBuilder
+    private var globalColorsSection: some View {
+        @Bindable var appState = appState
+        VStack(spacing: 0) {
+            // Header row
+            HStack {
+                Text("GLOBAL")
+                    .font(.system(size: 7, weight: .bold, design: .monospaced))
+                    .foregroundStyle(HueBaseTheme.purple.opacity(0.8))
+                Spacer()
+                Button {
+                    saveName = ""
+                    showSaveRow.toggle()
+                    if showSaveRow { saveFieldFocused = true }
+                } label: {
+                    Image(systemName: showSaveRow ? "xmark" : "plus")
+                        .font(.system(size: 9))
+                        .foregroundStyle(HueBaseTheme.purple)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.bottom, 4)
+
+            // Inline save row
+            if showSaveRow {
+                HStack(spacing: 4) {
+                    TextField("Name", text: $saveName)
+                        .font(.system(size: 9, design: .monospaced))
+                        .textFieldStyle(.roundedBorder)
+                        .focused($saveFieldFocused)
+                        .onSubmit { commitSave() }
+                    Button(action: commitSave) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(HueBaseTheme.active)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(saveName.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+                .padding(.bottom, 4)
+            }
+
+            // Saved color list
+            if appState.show.globalColors.isEmpty && !showSaveRow {
+                Text("No saved colors")
+                    .font(.system(size: 8, design: .monospaced))
+                    .foregroundStyle(Color(white: 0.3))
+                    .padding(.vertical, 4)
+            } else {
+                ForEach(appState.show.globalColors) { gc in
+                    Button {
+                        rgb = (gc.r, gc.g, gc.b)
+                        syncFromRGB()
+                    } label: {
+                        HStack(spacing: 5) {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color(red: gc.r, green: gc.g, blue: gc.b))
+                                .frame(width: 14, height: 14)
+                                .overlay(RoundedRectangle(cornerRadius: 3)
+                                    .stroke(Color(white: 0.3), lineWidth: 0.5))
+                            Text(gc.name)
+                                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                                .foregroundStyle(Color(white: 0.75))
+                                .lineLimit(1)
+                            Spacer()
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button("Update to Current Color") {
+                            if let i = appState.show.globalColors.firstIndex(where: { $0.id == gc.id }) {
+                                appState.show.globalColors[i].r = rgb.r
+                                appState.show.globalColors[i].g = rgb.g
+                                appState.show.globalColors[i].b = rgb.b
+                            }
+                        }
+                        Divider()
+                        Button("Delete", role: .destructive) {
+                            appState.show.globalColors.removeAll { $0.id == gc.id }
+                        }
+                    }
+                    .padding(.vertical, 1)
+                }
+            }
+        }
+    }
+
+    private var presetsSection: some View {
         let presets: [(String, Double, Double, Double)] = [
-            ("Red",       1.00, 0.00, 0.00),
-            ("Orange",    1.00, 0.40, 0.00),
-            ("Yellow",    1.00, 0.90, 0.00),
-            ("Lime",      0.30, 1.00, 0.00),
-            ("Green",     0.00, 1.00, 0.00),
-            ("Cyan",      0.00, 0.90, 1.00),
-            ("Blue",      0.00, 0.20, 1.00),
-            ("Violet",    0.40, 0.00, 1.00),
-            ("Magenta",   1.00, 0.00, 0.80),
-            ("Pink",      1.00, 0.30, 0.60),
-            ("Warm W.",   1.00, 0.85, 0.60),
-            ("White",     1.00, 1.00, 1.00),
-            ("Dim",       0.30, 0.30, 0.30),
-            ("Black",     0.00, 0.00, 0.00),
+            ("Red",      1.00, 0.00, 0.00),
+            ("Orange",   1.00, 0.40, 0.00),
+            ("Yellow",   1.00, 0.90, 0.00),
+            ("Lime",     0.30, 1.00, 0.00),
+            ("Green",    0.00, 1.00, 0.00),
+            ("Cyan",     0.00, 0.90, 1.00),
+            ("Blue",     0.00, 0.20, 1.00),
+            ("Violet",   0.40, 0.00, 1.00),
+            ("Magenta",  1.00, 0.00, 0.80),
+            ("Pink",     1.00, 0.30, 0.60),
+            ("Warm W.",  1.00, 0.85, 0.60),
+            ("White",    1.00, 1.00, 1.00),
+            ("Dim",      0.30, 0.30, 0.30),
+            ("Black",    0.00, 0.00, 0.00),
         ]
-        return VStack(spacing: 3) {
+        return VStack(spacing: 0) {
+            HStack {
+                Text("PRESETS")
+                    .font(.system(size: 7, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Color(white: 0.35))
+                Spacer()
+            }
+            .padding(.bottom, 4)
+
             ForEach(presets, id: \.0) { (name, r, g, b) in
                 Button {
                     rgb = (r, g, b)
@@ -180,17 +287,27 @@ struct DMXColorPicker: View {
                         RoundedRectangle(cornerRadius: 3)
                             .fill(Color(red: r, green: g, blue: b))
                             .frame(width: 14, height: 14)
-                            .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color(white: 0.3), lineWidth: 0.5))
+                            .overlay(RoundedRectangle(cornerRadius: 3)
+                                .stroke(Color(white: 0.3), lineWidth: 0.5))
                         Text(name)
                             .font(.system(size: 9, weight: .medium, design: .monospaced))
-                            .foregroundStyle(Color(white: 0.7))
+                            .foregroundStyle(Color(white: 0.6))
                         Spacer()
                     }
                 }
                 .buttonStyle(.plain)
+                .padding(.vertical, 1)
             }
         }
-        .frame(width: 74)
+    }
+
+    private func commitSave() {
+        let name = saveName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        let gc = GlobalColor(name: name, r: rgb.r, g: rgb.g, b: rgb.b)
+        appState.show.globalColors.append(gc)
+        saveName = ""
+        showSaveRow = false
     }
 
     // MARK: - RGB Sliders
