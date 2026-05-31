@@ -130,7 +130,7 @@ struct ScriptEditorView: View {
 }
 
 private let defaultScript = """
-// SmartLightDesigner Script
+// HueBase Script
 // Available functions:
 //   setChannel(universe, channel, value)  — universe 0-based, channel 0-511, value 0-255
 //   sleep(ms)                             — pause for N milliseconds

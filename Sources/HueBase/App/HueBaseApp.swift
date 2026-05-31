@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct SmartLightDesignerApp: App {
+struct HueBaseApp: App {
     @State private var appState = AppState()
 
     var body: some Scene {

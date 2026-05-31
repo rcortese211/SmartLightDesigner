@@ -68,7 +68,7 @@ struct OutputSettingsView: View {
             if appState.show.sACN.enabled {
                 Section("Settings") {
                     LabeledContent("Source Name") {
-                        TextField("SmartLightDesigner", text: $state.show.sACN.sourceName)
+                        TextField("HueBase", text: $state.show.sACN.sourceName)
                             .textFieldStyle(.roundedBorder)
                     }
                     LabeledContent("Priority") {

@@ -18,7 +18,7 @@ struct ArtNetConfiguration: Codable {
 
 struct SACNConfiguration: Codable {
     var enabled: Bool = false
-    var sourceName: String = "SmartLightDesigner"
+    var sourceName: String = "HueBase"
     var priority: UInt8 = 100
     var port: UInt16 = 5568
     var universeMappings: [UniverseMapping] = [

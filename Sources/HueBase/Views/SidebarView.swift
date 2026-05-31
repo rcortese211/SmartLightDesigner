@@ -10,7 +10,7 @@ struct SidebarView: View {
                 .tag(tab)
         }
         .listStyle(.sidebar)
-        .navigationTitle("SmartLight Designer")
+        .navigationTitle("HueBase")
         .safeAreaInset(edge: .bottom) {
             universeStatus
         }
