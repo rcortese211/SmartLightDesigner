@@ -24,6 +24,8 @@ final class AppState {
     var programBLayers: [Layer] = [] {
         didSet { engine.programBLayers = programBLayers }
     }
+    var recalledPaletteIDOnA: UUID? = nil
+    var recalledPaletteIDOnB: UUID? = nil
 
     let engine: DMXEngine
     let outputManager: DMXOutputManager

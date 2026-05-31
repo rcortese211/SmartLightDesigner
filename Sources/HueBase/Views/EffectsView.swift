@@ -9,8 +9,6 @@ struct EffectsView: View {
     @State private var selectedLayerID: UUID?
     @State private var showAddFolder = false
     @State private var showAddPalette = false
-    @State private var recalledPaletteIDOnA: UUID?
-    @State private var recalledPaletteIDOnB: UUID?
 
     var body: some View {
         HSplitView {
@@ -104,7 +102,7 @@ struct EffectsView: View {
                             HStack(spacing: 5) {
                                 Text(palette.name)
                                     .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                                if palette.id == recalledPaletteIDOnA {
+                                if palette.id == appState.recalledPaletteIDOnA {
                                     Text("A")
                                         .font(.system(size: 11, weight: .bold, design: .monospaced))
                                         .foregroundStyle(HueBaseTheme.active)
@@ -112,7 +110,7 @@ struct EffectsView: View {
                                         .background(HueBaseTheme.active.opacity(0.18))
                                         .clipShape(RoundedRectangle(cornerRadius: 4))
                                 }
-                                if palette.id == recalledPaletteIDOnB {
+                                if palette.id == appState.recalledPaletteIDOnB {
                                     Text("B")
                                         .font(.system(size: 11, weight: .bold, design: .monospaced))
                                         .foregroundStyle(HueBaseTheme.purple)
@@ -331,12 +329,12 @@ struct EffectsView: View {
                 appState.show.effectFolders[fi].palettes[pi].layers[li] = newLayer
                 let paletteID = appState.show.effectFolders[fi].palettes[pi].id
                 // Mirror to live deck A if this palette is currently recalled there
-                if paletteID == recalledPaletteIDOnA,
+                if paletteID == appState.recalledPaletteIDOnA,
                    let idx = appState.show.layers.firstIndex(where: { $0.id == newLayer.id }) {
                     appState.show.layers[idx] = newLayer
                 }
                 // Mirror to live deck B if this palette is currently recalled there
-                if paletteID == recalledPaletteIDOnB,
+                if paletteID == appState.recalledPaletteIDOnB,
                    let idx = appState.programBLayers.firstIndex(where: { $0.id == newLayer.id }) {
                     appState.programBLayers[idx] = newLayer
                 }
@@ -403,7 +401,7 @@ struct EffectsView: View {
 
     private func recallPalette(_ palette: EffectPalette) {
         appState.show.layers = palette.layers   // keep same IDs so live-edit can mirror by ID
-        recalledPaletteIDOnA = palette.id
+        appState.recalledPaletteIDOnA = palette.id
         appState.statusMessage = "Recalled: \(palette.name)"
     }
 
@@ -419,7 +417,7 @@ struct EffectsView: View {
 
     private func recallPaletteToBDeck(_ palette: EffectPalette) {
         appState.programBLayers = palette.layers   // keep same IDs for live-edit mirroring
-        recalledPaletteIDOnB = palette.id
+        appState.recalledPaletteIDOnB = palette.id
         appState.statusMessage = "B: \(palette.name)"
     }
 
