@@ -106,19 +106,19 @@ struct EffectsView: View {
                                     .font(.system(size: 11, weight: .semibold, design: .monospaced))
                                 if palette.id == recalledPaletteIDOnA {
                                     Text("A")
-                                        .font(.system(size: 7, weight: .bold, design: .monospaced))
+                                        .font(.system(size: 11, weight: .bold, design: .monospaced))
                                         .foregroundStyle(HueBaseTheme.active)
-                                        .padding(.horizontal, 4).padding(.vertical, 1)
+                                        .padding(.horizontal, 6).padding(.vertical, 3)
                                         .background(HueBaseTheme.active.opacity(0.18))
-                                        .clipShape(RoundedRectangle(cornerRadius: 3))
+                                        .clipShape(RoundedRectangle(cornerRadius: 4))
                                 }
                                 if palette.id == recalledPaletteIDOnB {
                                     Text("B")
-                                        .font(.system(size: 7, weight: .bold, design: .monospaced))
+                                        .font(.system(size: 11, weight: .bold, design: .monospaced))
                                         .foregroundStyle(HueBaseTheme.purple)
-                                        .padding(.horizontal, 4).padding(.vertical, 1)
+                                        .padding(.horizontal, 6).padding(.vertical, 3)
                                         .background(HueBaseTheme.purple.opacity(0.18))
-                                        .clipShape(RoundedRectangle(cornerRadius: 3))
+                                        .clipShape(RoundedRectangle(cornerRadius: 4))
                                 }
                             }
                             Text("\(palette.layers.count) layer\(palette.layers.count == 1 ? "" : "s")")

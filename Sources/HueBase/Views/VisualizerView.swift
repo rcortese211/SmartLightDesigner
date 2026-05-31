@@ -7,14 +7,14 @@ struct VisualizerView: View {
     @State private var showChannelValues: Bool = false
     @State private var showOverlayEffect: Bool = true
     @State private var displayUniverseIndex: Int = 0
-    @State private var layoutMode: LayoutMode = .grid
+    @State private var layoutMode: LayoutMode = .freeform
     @State private var zoomScale: CGFloat = 1.0
     @State private var panOffset: CGSize = .zero
     @GestureState private var liveZoomDelta: CGFloat = 1.0
     @GestureState private var livePanDelta: CGSize = .zero
 
     enum LayoutMode: String, CaseIterable {
-        case freeform = "Freeform"
+        case freeform = "Map"
         case grid     = "Grid"
     }
 
