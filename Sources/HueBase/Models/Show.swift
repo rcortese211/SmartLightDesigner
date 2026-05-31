@@ -15,6 +15,8 @@ struct Show: Codable {
     var effectFolders: [EffectFolder] = []
     var globalColors: [GlobalColor] = []
     var savedScripts: [SavedScript] = []
+    var timeline: Timeline = Timeline()
+    var audio: AudioConfiguration = AudioConfiguration()
     var notes: String = ""
     var createdAt: Date = Date()
     var modifiedAt: Date = Date()

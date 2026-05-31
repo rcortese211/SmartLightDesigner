@@ -19,6 +19,9 @@ final class DMXEngine {
     var crossfade: Double = 0
     var programBLayers: [Layer] = []
 
+    // Timeline playback override — when set, takes priority over show.layers and cue engine
+    var playbackLayers: [Layer]? = nil
+
     // Highlight override — applied after all other rendering; highest priority
     struct HighlightOverride {
         var selectedIDs: Set<UUID>
@@ -66,7 +69,7 @@ final class DMXEngine {
         let time = Date().timeIntervalSinceReferenceDate - startTime
         cueEngine.updateFade(currentTime: Date().timeIntervalSinceReferenceDate)
 
-        let aLayers = cueEngine.activeLayers ?? show.layers
+        let aLayers = playbackLayers ?? cueEngine.activeLayers ?? show.layers
         let newUniverseData: [Int: [UInt8]]
 
         if crossfade <= 0.001 {

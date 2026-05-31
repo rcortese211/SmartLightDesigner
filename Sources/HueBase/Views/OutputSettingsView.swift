@@ -28,6 +28,8 @@ struct OutputSettingsView: View {
                 .tabItem { Label("OSC", systemImage: "antenna.radiowaves.left.and.right") }
             timecodeTab
                 .tabItem { Label("Timecode", systemImage: "clock") }
+            audioOutputTab
+                .tabItem { Label("Audio", systemImage: "speaker.wave.2") }
         }
         .padding()
         .navigationTitle("Output")
@@ -426,6 +428,43 @@ struct OutputSettingsView: View {
                 LabeledContent("Running") {
                     Text(appState.timecodeEngine.isRunning ? "Yes" : "No")
                 }
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    // MARK: - Audio Output
+
+    private var audioOutputTab: some View {
+        @Bindable var state = appState
+        return Form {
+            Section("Audio Output Device") {
+                Picker("Output Device", selection: $state.show.audio.outputDeviceUID) {
+                    Text("System Default").tag("")
+                    ForEach(AudioPlayer.availableOutputDevices(), id: \.uid) { device in
+                        Text(device.name).tag(device.uid)
+                    }
+                }
+                .onChange(of: appState.show.audio.outputDeviceUID) { _, uid in
+                    appState.audioPlayer.setOutputDevice(uid: uid)
+                }
+
+                LabeledContent("Master Volume") {
+                    HStack {
+                        Slider(value: $state.show.audio.masterVolume, in: 0...1)
+                        Text("\(Int(state.show.audio.masterVolume * 100))%")
+                            .monospacedDigit().frame(width: 40)
+                    }
+                }
+                .onChange(of: appState.show.audio.masterVolume) { _, v in
+                    appState.audioPlayer.setVolume(v)
+                }
+            }
+
+            Section {
+                Text("Audio playback is used by the Timeline for music tracks. Select the output device here; it will be applied whenever the Timeline plays back audio.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)

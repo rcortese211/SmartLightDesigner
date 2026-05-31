@@ -41,6 +41,13 @@ struct OSCConfiguration: Codable {
     var sendPort: UInt16 = 8001
 }
 
+// MARK: - Audio
+
+struct AudioConfiguration: Codable {
+    var outputDeviceUID: String = ""   // empty = system default
+    var masterVolume: Double = 1.0
+}
+
 // MARK: - Philips Hue
 
 struct HueLightMapping: Codable, Identifiable, Hashable {

@@ -36,6 +36,8 @@ final class AppState {
     let scriptEngine: JSScriptEngine
     let timecodeEngine: TimecodeEngine
     let bridgeDiscovery: HueBridgeDiscovery
+    let timelineEngine: TimelineEngine
+    let audioPlayer: AudioPlayer
 
     private var artNetTC: ArtNetTimecodeReceiver?
     private var networkTC: NetworkTimecodeSync?
@@ -46,12 +48,17 @@ final class AppState {
         let om  = DMXOutputManager()
         let eng = DMXEngine(outputManager: om)
         let tc  = TimecodeEngine()
+        let tl  = TimelineEngine()
+        let ap  = AudioPlayer()
         self.engine          = eng
         self.outputManager   = om
         self.oscServer       = OSCServer()
         self.scriptEngine    = JSScriptEngine()
         self.timecodeEngine  = tc
         self.bridgeDiscovery = HueBridgeDiscovery()
+        self.timelineEngine  = tl
+        self.audioPlayer     = ap
+        tl.appState = self
         loadAutosave()
         if show.fixtureProfiles.isEmpty { setupDefaultProfiles() }
         setupOSCHandlers()

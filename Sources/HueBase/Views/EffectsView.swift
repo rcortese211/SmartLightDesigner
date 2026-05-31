@@ -149,6 +149,9 @@ struct EffectsView: View {
                             Button("Delete Palette", role: .destructive) { deletePalette(palette, from: folder) }
                         }
                         .onTapGesture(count: 2) { recallPalette(palette) }
+                        .draggable(PaletteTransfer(paletteID: palette.id,
+                                                   paletteName: palette.name,
+                                                   layers: palette.layers))
                     }
                     .onMove { indices, dest in movePalette(in: folder, from: indices, to: dest) }
                 }
