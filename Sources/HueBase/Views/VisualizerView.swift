@@ -232,19 +232,20 @@ struct VisualizerView: View {
     private static let overlayFixtureID = UUID()
 
     private func drawOverlay(ctx: inout GraphicsContext, size: CGSize) {
-        let layers = appState.show.layers.filter { $0.isEnabled }
-        guard !layers.isEmpty else { return }
+        let fade   = appState.crossfade
+        let aLayers = (fade < 0.999) ? appState.show.layers.filter { $0.isEnabled } : []
+        let bLayers = (fade > 0.001) ? appState.programBLayers.filter { $0.isEnabled } : []
+        guard !aLayers.isEmpty || !bLayers.isEmpty else { return }
+
         let registry = EffectRegistry.shared
         let profile  = Self.overlayProfile
-        let paramOverrides = appState.engine.parameterOverrides
+        let overrides = appState.engine.parameterOverrides
         let time = Date().timeIntervalSinceReferenceDate
 
-        // Coarse pixel grid — each cell is evaluated as a virtual fixture
         let cellSize: CGFloat = 20
         let cols = Int(ceil(size.width  / cellSize))
         let rows = Int(ceil(size.height / cellSize))
 
-        // Single reused struct — only positionX/Y change per cell
         var vf = Fixture(id: Self.overlayFixtureID, name: "", profileId: profile.id,
                          universe: 0, startAddress: 1, positionX: 0, positionY: 0)
 
@@ -253,21 +254,38 @@ struct VisualizerView: View {
                 vf.positionX = (Double(col) + 0.5) / Double(cols)
                 vf.positionY = (Double(row) + 0.5) / Double(rows)
 
-                var r: Double = 0, g: Double = 0, b: Double = 0
-                for layer in layers {
+                // Render Program A
+                var ar: Double = 0, ag: Double = 0, ab: Double = 0
+                for layer in aLayers {
                     guard let effect = registry.effect(for: layer.effectId) else { continue }
                     var params = layer.parameters
-                    if let ov = paramOverrides[layer.id] { params.merge(ov) { _, new in new } }
+                    if let ov = overrides[layer.id] { params.merge(ov) { _, new in new } }
                     let ch = effect.render(fixture: vf, profile: profile,
                                            parameters: params, time: time, speed: layer.speed)
-                    let sr = Double(ch[0] ?? 0) / 255.0
-                    let sg = Double(ch[1] ?? 0) / 255.0
-                    let sb = Double(ch[2] ?? 0) / 255.0
-                    let a  = layer.opacity
-                    r += (sr - r) * a
-                    g += (sg - g) * a
-                    b += (sb - b) * a
+                    let a = layer.opacity
+                    ar += (Double(ch[0] ?? 0) / 255.0 - ar) * a
+                    ag += (Double(ch[1] ?? 0) / 255.0 - ag) * a
+                    ab += (Double(ch[2] ?? 0) / 255.0 - ab) * a
                 }
+
+                // Render Program B
+                var br: Double = 0, bg: Double = 0, bb: Double = 0
+                for layer in bLayers {
+                    guard let effect = registry.effect(for: layer.effectId) else { continue }
+                    var params = layer.parameters
+                    if let ov = overrides[layer.id] { params.merge(ov) { _, new in new } }
+                    let ch = effect.render(fixture: vf, profile: profile,
+                                           parameters: params, time: time, speed: layer.speed)
+                    let a = layer.opacity
+                    br += (Double(ch[0] ?? 0) / 255.0 - br) * a
+                    bg += (Double(ch[1] ?? 0) / 255.0 - bg) * a
+                    bb += (Double(ch[2] ?? 0) / 255.0 - bb) * a
+                }
+
+                // Crossfade A → B
+                let r = ar * (1 - fade) + br * fade
+                let g = ag * (1 - fade) + bg * fade
+                let b = ab * (1 - fade) + bb * fade
                 guard r > 0.004 || g > 0.004 || b > 0.004 else { continue }
 
                 let rect = CGRect(x: CGFloat(col) * cellSize, y: CGFloat(row) * cellSize,
