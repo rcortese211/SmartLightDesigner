@@ -15,6 +15,7 @@ struct PatchView: View {
             }
         }
         .navigationTitle("Patch")
+        .background(HueBaseTheme.background)
         .toolbar {
             ToolbarItemGroup {
                 Button(action: { showAddFixture = true }) {

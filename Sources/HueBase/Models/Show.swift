@@ -12,6 +12,7 @@ struct Show: Codable {
     var osc: OSCConfiguration = OSCConfiguration()
     var hue: HueConfiguration = HueConfiguration()
     var timecode: TimecodeConfiguration = TimecodeConfiguration()
+    var effectFolders: [EffectFolder] = []
     var savedScripts: [SavedScript] = []
     var notes: String = ""
     var createdAt: Date = Date()
