@@ -33,7 +33,7 @@ final class AudioPlayer {
         audioFile = file
         isLoaded = true
         waveformSamples = []
-        let targetBuckets = min(16384, max(4096, Int(fileDuration * 50)))
+        let targetBuckets = min(32768, max(8192, Int(fileDuration * 100)))
         extractWaveform(url: url, totalFrames: file.length, format: fmt, targetBuckets: targetBuckets)
     }
 
