@@ -7,11 +7,22 @@ final class EffectRegistry {
 
     private init() {
         register(ColorFillEffect())
+        register(ColorMorphEffect())
         register(GradientEffect())
         register(ChaseEffect())
+        register(BounceEffect())
+        register(ScannerEffect())
+        register(SegmentEffect())
         register(StrobeEffect())
+        register(PulseEffect())
+        register(WaveEffect())
         register(RainbowEffect())
+        register(RippleEffect())
+        register(PlasmaEffect())
+        register(FireEffect())
         register(SparkleEffect())
+        register(TwinkleEffect())
+        register(AlternatingEffect())
     }
 
     func register(_ effect: some Effect) {
