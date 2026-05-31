@@ -6,7 +6,10 @@ import UniformTypeIdentifiers
 @Observable
 final class AppState {
     var show = Show() {
-        didSet { if !_loadingAutosave { scheduleAutosave() } }
+        didSet {
+            if !_loadingAutosave { scheduleAutosave() }
+            engine.update(show: show)
+        }
     }
     var selectedTab: AppTab = .visualizer
     var isOutputEnabled = false

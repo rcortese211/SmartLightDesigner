@@ -44,6 +44,11 @@ final class DMXEngine {
         outputManager.startAll()
     }
 
+    func update(show: Show) {
+        self.show = show
+        cueEngine.cues = show.cues
+    }
+
     func stop() {
         timer?.invalidate()
         timer = nil
