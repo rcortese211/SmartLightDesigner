@@ -11,7 +11,7 @@ enum HueBaseTheme {
     static let surface     = Color(red: 0.10, green: 0.08, blue: 0.18)   // panel
     static let surfaceHigh = Color(red: 0.14, green: 0.11, blue: 0.24)   // raised panel
     static let border      = Color(red: 0.22, green: 0.18, blue: 0.35)   // panel divider
-    static let borderBright= Color(red: 0.38, green: 0.28, blue: 0.60)   // active border
+    static let borderBright = Color(red: 0.38, green: 0.28, blue: 0.60)   // active border
 
     // Primary accent — used across all call sites
     static var accent: Color { purple }
