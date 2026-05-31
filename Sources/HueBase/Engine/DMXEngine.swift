@@ -28,7 +28,7 @@ final class DMXEngine {
         timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             self?.tick()
         }
-        RunLoop.main.add(timer!, forMode: .common)
+        if let t = timer { RunLoop.main.add(t, forMode: .common) }
         outputManager.startAll()
     }
 
@@ -116,23 +116,44 @@ final class DMXEngine {
             let dst = Double(universe[idx])
             let a   = opacity
 
-            let result: Double
+            // Normalise to 0-1 for blend math, scale back at end
+            let s = src / 255.0, d = dst / 255.0
+            let blended: Double
             switch blendMode {
-            case .normal:
-                result = src * a + dst * (1 - a)
-            case .add:
-                result = min(255, dst + src * a)
-            case .subtract:
-                result = max(0, dst - src * a)
-            case .multiply:
-                result = dst * (1 - a) + (dst * src / 255) * a
-            case .screen:
-                let screened = 255 - (255 - dst) * (255 - src) / 255
-                result = dst * (1 - a) + screened * a
-            case .override:
-                result = srcByte > 0 ? (src * a + dst * (1 - a)) : dst
+            // Basic
+            case .normal:       blended = s
+            case .override:     blended = srcByte > 0 ? s : d
+            // Darken
+            case .darken:       blended = min(d, s)
+            case .multiply:     blended = d * s
+            case .colorBurn:    blended = s > 0 ? max(0, 1 - (1 - d) / s) : 0
+            case .linearBurn:   blended = max(0, d + s - 1)
+            // Lighten
+            case .lighten:      blended = max(d, s)
+            case .screen:       blended = 1 - (1 - d) * (1 - s)
+            case .colorDodge:   blended = s < 1 ? min(1, d / (1 - s)) : 1
+            case .linearDodge:  blended = min(1, d + s)
+            // Contrast
+            case .overlay:      blended = d < 0.5 ? 2*d*s : 1 - 2*(1-d)*(1-s)
+            case .softLight:
+                if s < 0.5 { blended = d - (1 - 2*s)*d*(1-d) }
+                else        { let g = d < 0.25 ? ((16*d-12)*d+4)*d : sqrt(d)
+                              blended = d + (2*s-1)*(g-d) }
+            case .hardLight:    blended = s < 0.5 ? 2*d*s : 1 - 2*(1-d)*(1-s)
+            case .vividLight:   blended = s < 0.5 ? (s > 0 ? max(0, 1-(1-d)/(2*s)) : 0) : (s < 1 ? min(1, d/(2*(1-s))) : 1)
+            case .linearLight:  blended = max(0, min(1, d + 2*s - 1))
+            case .pinLight:     blended = s < 0.5 ? min(d, 2*s) : max(d, 2*s-1)
+            case .hardMix:      blended = (s < 0.5 ? max(0,1-(1-d)/(2*s)) : min(1,d/(2*(1-s)))) < 0.5 ? 0 : 1
+            // Inversion
+            case .difference:   blended = abs(d - s)
+            case .exclusion:    blended = d + s - 2*d*s
+            // Component
+            case .subtract:     blended = max(0, d - s)
+            case .divide:       blended = s > 0 ? min(1, d / s) : 1
+            case .negativeMask: blended = s > 0 ? 0 : d
             }
-            universe[idx] = UInt8(max(0, min(255, result)))
+            let result = blended * a + d * (1 - a)
+            universe[idx] = UInt8(max(0, min(255, result * 255)))
         }
     }
 }

@@ -9,15 +9,16 @@ struct ContentView: View {
             SidebarView()
         } detail: {
             detailView
+                .background(HueBaseTheme.background)
         }
         .toolbar {
             ToolbarItem(placement: .navigation) {
-                Text(appState.show.name.isEmpty ? "Untitled Show" : appState.show.name)
+                Text(appState.show.name.isEmpty ? "HueBase" : appState.show.name)
                     .font(.headline)
+                    .foregroundStyle(HueBaseTheme.accentGradient)
             }
             ToolbarItemGroup(placement: .primaryAction) {
                 OutputToggleButton()
-                Spacer()
                 Text(appState.statusMessage)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -35,6 +36,7 @@ struct ContentView: View {
         case .visualizer: VisualizerView()
         case .output:     OutputSettingsView()
         case .scripting:  ScriptEditorView()
+        case .benchmark:  BenchmarkView()
         }
     }
 }
@@ -49,8 +51,14 @@ struct OutputToggleButton: View {
                 systemImage: appState.isOutputEnabled ? "bolt.fill" : "bolt.slash"
             )
         }
-        .tint(appState.isOutputEnabled ? .green : .secondary)
+        .tint(appState.isOutputEnabled ? HueBaseTheme.purple : .secondary)
         .buttonStyle(.bordered)
+        .overlay(
+            appState.isOutputEnabled
+                ? RoundedRectangle(cornerRadius: 6)
+                    .stroke(HueBaseTheme.accentGradient, lineWidth: 1)
+                : nil
+        )
         .help(appState.isOutputEnabled ? "Disable DMX output" : "Enable DMX output")
     }
 }

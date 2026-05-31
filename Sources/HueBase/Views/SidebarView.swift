@@ -8,9 +8,15 @@ struct SidebarView: View {
         List(AppTab.allCases, selection: $state.selectedTab) { tab in
             Label(tab.rawValue, systemImage: tab.systemImage)
                 .tag(tab)
+                .foregroundStyle(state.selectedTab == tab
+                    ? HueBaseTheme.accentGradient
+                    : AnyShapeStyle(Color.primary))
         }
         .listStyle(.sidebar)
         .navigationTitle("HueBase")
+        .safeAreaInset(edge: .top) {
+            GradientBar(height: 3)
+        }
         .safeAreaInset(edge: .bottom) {
             universeStatus
         }

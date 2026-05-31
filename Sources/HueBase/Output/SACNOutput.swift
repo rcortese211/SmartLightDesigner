@@ -60,10 +60,10 @@ final class SACNOutput: DMXOutputDriver {
 
     private func buildSACNPacket(universe: Int, sequence: UInt8, values: [UInt8]) -> Data {
         let dataLen = values.count
-        let dmpLen  = 11 + dataLen
-        let framingLen = 77 + dataLen
-        let rootLen    = 88 + dataLen
-        let totalLen   = 126 + dataLen
+        let dmpLen     = 11 + dataLen   // 2 flags+len + 1 vec + 1 type + 2+2 addr + 2 propCount + 1 startCode + N data
+        let framingLen = 88 + dataLen   // 2 + 4 + 64 + 1 + 2 + 1 + 1 + 2 (header=77) + dmpLen
+        let rootLen    = 110 + dataLen  // 2 + 4 + 16 (header=22) + framingLen
+        let totalLen   = 126 + dataLen  // 16 (preamble+postamble+ACN ID) + rootLen
 
         var p = Data(capacity: totalLen)
 

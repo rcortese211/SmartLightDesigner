@@ -9,6 +9,7 @@ struct HueBaseApp: App {
             ContentView()
                 .environment(appState)
                 .frame(minWidth: 1100, minHeight: 700)
+                .hueBaseTheme()
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified(showsTitle: true))

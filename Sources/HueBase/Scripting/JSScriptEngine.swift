@@ -1,5 +1,6 @@
 import Foundation
 import JavaScriptCore
+import Observation
 
 @Observable
 final class JSScriptEngine {

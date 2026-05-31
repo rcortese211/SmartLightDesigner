@@ -1,12 +1,34 @@
 import Foundation
 
 enum BlendMode: String, Codable, CaseIterable, Identifiable {
-    case normal    = "Normal"
-    case add       = "Add"
-    case subtract  = "Subtract"
-    case multiply  = "Multiply"
-    case screen    = "Screen"
-    case override  = "Override"
+    // Basic
+    case normal       = "Normal"
+    case override     = "Override"
+    // Darken group
+    case darken       = "Darken"
+    case multiply     = "Multiply"
+    case colorBurn    = "Color Burn"
+    case linearBurn   = "Linear Burn"
+    // Lighten group
+    case lighten      = "Lighten (HTP)"
+    case screen       = "Screen"
+    case colorDodge   = "Color Dodge"
+    case linearDodge  = "Add"
+    // Contrast group
+    case overlay      = "Overlay"
+    case softLight    = "Soft Light"
+    case hardLight    = "Hard Light"
+    case vividLight   = "Vivid Light"
+    case linearLight  = "Linear Light"
+    case pinLight     = "Pin Light"
+    case hardMix      = "Hard Mix"
+    // Inversion group
+    case difference   = "Difference"
+    case exclusion    = "Exclusion"
+    // Component group
+    case subtract     = "Subtract"
+    case divide       = "Divide"
+    case negativeMask = "Negative Mask"
 
     var id: String { rawValue }
 }

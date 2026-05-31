@@ -87,8 +87,8 @@ final class AppState {
             DispatchQueue.main.async { self?.toggleOutput() }
         }
         oscServer.addHandler(address: "/sld/layer/opacity") { [weak self] msg in
-            guard let args = msg.arguments as? [OSCArgument],
-                  args.count >= 2,
+            let args = msg.arguments
+            guard args.count >= 2,
                   let idx = args[0].intValue,
                   let opacity = args[1].floatValue else { return }
             DispatchQueue.main.async {
@@ -112,7 +112,7 @@ final class AppState {
 
     func saveShow() {
         let panel = NSSavePanel()
-        panel.allowedContentTypes = [.init(filenameExtension: "sld")!]
+        panel.allowedContentTypes = [UTType(filenameExtension: "sld") ?? .data]
         panel.nameFieldStringValue = show.name.isEmpty ? "Untitled" : show.name
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
@@ -126,7 +126,7 @@ final class AppState {
 
     func openShow() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.init(filenameExtension: "sld")!]
+        panel.allowedContentTypes = [UTType(filenameExtension: "sld") ?? .data]
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             let data = try Data(contentsOf: url)
@@ -155,6 +155,7 @@ enum AppTab: String, CaseIterable, Identifiable {
     case visualizer = "Visualizer"
     case output     = "Output"
     case scripting  = "Scripting"
+    case benchmark  = "Benchmark"
 
     var id: String { rawValue }
 
@@ -167,6 +168,7 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .visualizer: return "eye"
         case .output:     return "network"
         case .scripting:  return "terminal"
+        case .benchmark:  return "gauge.with.needle"
         }
     }
 }
