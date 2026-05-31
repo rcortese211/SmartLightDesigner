@@ -6,21 +6,31 @@ struct VisualizerView: View {
     @State private var showLabels: Bool = true
     @State private var showChannelValues: Bool = false
     @State private var displayUniverseIndex: Int = 0
+    @State private var layoutMode: LayoutMode = .freeform
+
+    enum LayoutMode: String, CaseIterable {
+        case freeform = "Freeform"
+        case grid     = "Grid"
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             controlBar
-            Divider()
+            Divider().background(HueBaseTheme.border)
             GeometryReader { geo in
                 ZStack {
-                    Color.black
                     Canvas { ctx, size in
-                        drawFixtures(ctx: ctx, size: size)
+                        drawGrid(ctx: &ctx, size: size)
+                        if layoutMode == .freeform {
+                            drawFixtures(ctx: &ctx, size: size)
+                        } else {
+                            drawGridFixtures(ctx: &ctx, size: size)
+                        }
                     }
                     .allowsHitTesting(false)
+                    .background(Color(red: 0.03, green: 0.02, blue: 0.07))
 
-                    // Overlay labels
-                    if showLabels {
+                    if showLabels && layoutMode == .freeform {
                         ForEach(appState.show.fixtures) { fixture in
                             let pos = fixturePosition(fixture, in: CGSize(width: geo.size.width, height: geo.size.height))
                             fixtureLabel(fixture, position: pos)
@@ -28,16 +38,50 @@ struct VisualizerView: View {
                     }
                 }
             }
+
+            // Status strip
+            HStack(spacing: 12) {
+                Text("\(appState.show.fixtures.count) FIXTURES")
+                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(HueBaseTheme.purple.opacity(0.8))
+                Text("UNI \(displayUniverseIndex + 1)")
+                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(Color(white: 0.32))
+                Spacer()
+                let activeCount = appState.show.fixtures.filter { fixture in
+                    guard let u = appState.engine.universeData[fixture.universe] else { return false }
+                    let start = fixture.startAddress - 1
+                    return (0..<3).contains { off in
+                        let i = start + off
+                        return i < u.count && u[i] > 0
+                    }
+                }.count
+                if activeCount > 0 {
+                    Text("\(activeCount) ACTIVE")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundStyle(HueBaseTheme.active)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(HueBaseTheme.surfaceHigh)
+            .overlay(alignment: .top) { GradientBar(height: 1) }
         }
         .navigationTitle("Visualizer")
         .toolbar {
             ToolbarItemGroup {
+                Picker("Layout", selection: $layoutMode) {
+                    ForEach(LayoutMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
                 Picker("Universe", selection: $displayUniverseIndex) {
                     let universes = Set(appState.show.fixtures.map { $0.universe }).sorted()
                     ForEach(universes, id: \.self) { u in
-                        Text("Universe \(u + 1)").tag(u)
+                        Text("Uni \(u + 1)").tag(u)
                     }
                 }
+                .font(.system(size: 11, design: .monospaced))
                 Toggle("Labels", isOn: $showLabels)
                 Toggle("Values", isOn: $showChannelValues)
             }
@@ -45,65 +89,134 @@ struct VisualizerView: View {
     }
 
     private var controlBar: some View {
-        HStack {
-            Text("Fixture Size")
+        HStack(spacing: 12) {
+            Text("SIZE")
+                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                .foregroundStyle(Color(white: 0.38))
             Slider(value: $fixtureSize, in: 12...80)
+                .tint(HueBaseTheme.purple)
                 .frame(width: 120)
             Spacer()
-            Text("\(appState.show.fixtures.count) fixtures")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
-        .padding(.horizontal)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(HueBaseTheme.surfaceHigh)
     }
 
-    private func drawFixtures(ctx: GraphicsContext, size: CGSize) {
-        let universeValues = appState.engine.universeData
+    // MARK: - Drawing
 
+    private func drawGrid(ctx: inout GraphicsContext, size: CGSize) {
+        let step: CGFloat = 48
+        var path = Path()
+        var x: CGFloat = 0
+        while x <= size.width {
+            path.move(to: CGPoint(x: x, y: 0))
+            path.addLine(to: CGPoint(x: x, y: size.height))
+            x += step
+        }
+        var y: CGFloat = 0
+        while y <= size.height {
+            path.move(to: CGPoint(x: 0, y: y))
+            path.addLine(to: CGPoint(x: size.width, y: y))
+            y += step
+        }
+        ctx.stroke(path, with: .color(Color(red: 0.12, green: 0.09, blue: 0.22)), lineWidth: 0.5)
+    }
+
+    private func drawFixtures(ctx: inout GraphicsContext, size: CGSize) {
+        let universeValues = appState.engine.universeData
         for fixture in appState.show.fixtures {
             let pos = fixturePosition(fixture, in: size)
-            let radius = fixtureSize / 2
+            drawFixtureAt(ctx: &ctx, pos: pos, fixture: fixture, universeValues: universeValues)
+        }
+    }
 
-            let color = fixtureColor(fixture, universeValues: universeValues)
-            let rect = CGRect(x: pos.x - radius, y: pos.y - radius,
-                              width: fixtureSize, height: fixtureSize)
+    private func drawGridFixtures(ctx: inout GraphicsContext, size: CGSize) {
+        let universeValues = appState.engine.universeData
+        let count = appState.show.fixtures.count
+        guard count > 0 else { return }
 
-            // Outer ring (always visible)
-            ctx.stroke(Path(ellipseIn: rect.insetBy(dx: 1, dy: 1)),
-                       with: .color(.white.opacity(0.3)), lineWidth: 1)
+        let cols = max(1, Int(ceil(sqrt(Double(count) * (size.width / max(1, size.height))))))
+        let rows = max(1, Int(ceil(Double(count) / Double(cols))))
+        let cellW = size.width / CGFloat(cols)
+        let cellH = size.height / CGFloat(rows)
+        let radius = min(cellW, cellH) * 0.3
 
-            // Fill with fixture color
-            ctx.fill(Path(ellipseIn: rect), with: .color(color))
+        for (i, fixture) in appState.show.fixtures.enumerated() {
+            let col = i % cols
+            let row = i / cols
+            let pos = CGPoint(
+                x: cellW * CGFloat(col) + cellW / 2,
+                y: cellH * CGFloat(row) + cellH / 2
+            )
+            drawFixtureAt(ctx: &ctx, pos: pos, fixture: fixture,
+                          universeValues: universeValues, overrideRadius: radius)
 
-            // Glow when bright
-            let brightness = color.resolve(in: EnvironmentValues())
-            let glow = Double(brightness.red + brightness.green + brightness.blue) / 3.0
-            if glow > 0.1 {
-                let glowRect = rect.insetBy(dx: -glow * 8, dy: -glow * 8)
-                ctx.fill(Path(ellipseIn: glowRect),
-                         with: .color(color.opacity(0.3 * glow)))
+            if showLabels {
+                ctx.draw(
+                    Text(fixture.name)
+                        .font(.system(size: max(6, radius * 0.5), design: .monospaced))
+                        .foregroundStyle(Color(red: 0.55, green: 0.38, blue: 0.90).opacity(0.7)),
+                    at: CGPoint(x: pos.x, y: pos.y + radius + 8)
+                )
             }
+        }
+    }
 
-            // Channel value overlay
-            if showChannelValues, let profile = appState.show.profile(for: fixture),
-               let universe = universeValues[fixture.universe] {
-                let startIdx = fixture.startAddress - 1
-                let channelStr = profile.channels.prefix(4).map { ch in
-                    let idx = startIdx + ch.offset
-                    let v = idx < universe.count ? universe[idx] : 0
-                    return "\(v)"
-                }.joined(separator: " ")
-                ctx.draw(Text(channelStr).font(.system(size: 7)).foregroundStyle(.white),
-                         at: CGPoint(x: pos.x, y: pos.y + radius + 10))
-            }
+    private func drawFixtureAt(ctx: inout GraphicsContext,
+                                pos: CGPoint,
+                                fixture: Fixture,
+                                universeValues: [Int: [UInt8]],
+                                overrideRadius: CGFloat? = nil) {
+        let radius: CGFloat = overrideRadius ?? CGFloat(fixtureSize) / 2
+        let color = fixtureColor(fixture, universeValues: universeValues)
+        let rect = CGRect(x: pos.x - radius, y: pos.y - radius,
+                          width: radius * 2, height: radius * 2)
+
+        // Dark base
+        ctx.fill(Path(ellipseIn: rect.insetBy(dx: 1, dy: 1)),
+                 with: .color(Color(red: 0.06, green: 0.04, blue: 0.11)))
+
+        // Colored fill
+        ctx.fill(Path(ellipseIn: rect.insetBy(dx: 3, dy: 3)), with: .color(color))
+
+        // Ring — bright purple border when active
+        let brightness = color.resolve(in: EnvironmentValues())
+        let glow = Double(brightness.red + brightness.green + brightness.blue) / 3.0
+        let ringColor = glow > 0.05
+            ? Color(red: 0.42, green: 0.18, blue: 0.92).opacity(0.7)
+            : Color(red: 0.22, green: 0.16, blue: 0.32)
+        ctx.stroke(Path(ellipseIn: rect.insetBy(dx: 0.5, dy: 0.5)),
+                   with: .color(ringColor), lineWidth: 1)
+
+        // Glow halo
+        if glow > 0.15 {
+            let glowRect = rect.insetBy(dx: -glow * 10, dy: -glow * 10)
+            ctx.fill(Path(ellipseIn: glowRect),
+                     with: .color(color.opacity(0.22 * glow)))
+        }
+
+        if showChannelValues, let profile = appState.show.profile(for: fixture),
+           let universe = universeValues[fixture.universe] {
+            let startIdx = fixture.startAddress - 1
+            let channelStr = profile.channels.prefix(4).map { ch in
+                let idx = startIdx + ch.offset
+                let v = idx < universe.count ? universe[idx] : 0
+                return "\(v)"
+            }.joined(separator: " ")
+            ctx.draw(
+                Text(channelStr)
+                    .font(.system(size: 7, design: .monospaced))
+                    .foregroundStyle(Color.white.opacity(0.75)),
+                at: CGPoint(x: pos.x, y: pos.y + radius + 10)
+            )
         }
     }
 
     private func fixtureColor(_ fixture: Fixture, universeValues: [Int: [UInt8]]) -> Color {
         guard let profile = appState.show.profile(for: fixture),
               let universe = universeValues[fixture.universe] else {
-            return Color(white: 0.1)
+            return Color(red: 0.07, green: 0.05, blue: 0.12)
         }
 
         let startIdx = fixture.startAddress - 1
@@ -124,17 +237,15 @@ struct VisualizerView: View {
             }
         }
 
-        // If only a dimmer channel exists, show white
         if r == 0 && g == 0 && b == 0 && dimmer < 1 {
             return Color(white: dimmer)
         }
-
         return Color(red: r * dimmer, green: g * dimmer, blue: b * dimmer)
     }
 
     private func fixturePosition(_ fixture: Fixture, in size: CGSize) -> CGPoint {
         let margin = fixtureSize
-        CGPoint(
+        return CGPoint(
             x: margin + fixture.positionX * (size.width - margin * 2),
             y: margin + fixture.positionY * (size.height - margin * 2)
         )
@@ -143,8 +254,8 @@ struct VisualizerView: View {
     @ViewBuilder
     private func fixtureLabel(_ fixture: Fixture, position: CGPoint) -> some View {
         Text(fixture.name)
-            .font(.system(size: 9))
-            .foregroundStyle(.white.opacity(0.7))
+            .font(.system(size: 8, design: .monospaced))
+            .foregroundStyle(HueBaseTheme.purple.opacity(0.7))
             .position(x: position.x, y: position.y + fixtureSize / 2 + 8)
     }
 }

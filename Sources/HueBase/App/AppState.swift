@@ -1,6 +1,7 @@
 import SwiftUI
 import Observation
 import AppKit
+import UniformTypeIdentifiers
 
 @Observable
 final class AppState {
@@ -38,10 +39,9 @@ final class AppState {
     }
 
     private func setupTimecodeCallbacks() {
-        timecodeEngine.onTimecodeUpdate = { [weak self] tc in
+        timecodeEngine.onTimecodeUpdate = { _ in
             // Drive the cue timeline when timecode is running
             // Full timeline-to-cue mapping can be wired here
-            _ = tc
         }
     }
 

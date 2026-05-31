@@ -32,7 +32,7 @@ struct LayerEditorView: View {
                     }
                 }
                 Picker("Blend Mode", selection: $layer.blendMode) {
-                    ForEach(BlendMode.allCases) { mode in
+                    ForEach(DMXBlendMode.allCases) { mode in
                         Text(mode.rawValue).tag(mode)
                     }
                 }

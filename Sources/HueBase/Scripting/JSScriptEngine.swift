@@ -29,7 +29,8 @@ final class JSScriptEngine {
     func executeAsync(_ source: String) {
         Task.detached(priority: .userInitiated) { [weak self] in
             self?.context.evaluateScript(source)
-            await MainActor.run { self?.isRunning = false }
+            guard let self else { return }
+            await MainActor.run { self.isRunning = false }
         }
         isRunning = true
     }

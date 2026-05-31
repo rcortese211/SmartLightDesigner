@@ -21,15 +21,20 @@ struct ScriptEditorView: View {
     private var scriptLibrary: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Scripts").font(.headline)
+                Text("SCRIPTS")
+                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(HueBaseTheme.accentGradient)
+                    .kerning(1)
                 Spacer()
                 Button(action: addScript) {
                     Image(systemName: "plus.circle")
+                        .foregroundStyle(HueBaseTheme.purple)
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal).padding(.vertical, 8)
-            Divider()
+            .padding(.horizontal, 10).padding(.vertical, 8)
+            .background(HueBaseTheme.surfaceHigh)
+            .overlay(alignment: .bottom) { GradientBar(height: 1) }
             List(appState.show.savedScripts, selection: $selectedScriptId) { script in
                 Text(script.name)
                     .tag(script.id)
@@ -56,52 +61,77 @@ struct ScriptEditorView: View {
 
                 VStack(alignment: .leading, spacing: 0) {
                     HStack {
-                        Text("Console").font(.caption).bold().foregroundStyle(.secondary)
+                        Text("CONSOLE")
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(HueBaseTheme.accentGradient)
+                            .kerning(1)
                         Spacer()
-                        Button("Clear") { scriptEngine.clearOutput() }
+                        Button("CLEAR") { scriptEngine.clearOutput() }
                             .buttonStyle(.plain)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 9, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Color(white: 0.38))
                     }
-                    .padding(.horizontal, 8).padding(.vertical, 4)
-                    Divider()
+                    .padding(.horizontal, 8).padding(.vertical, 6)
+                    .background(HueBaseTheme.surfaceHigh)
+                    .overlay(alignment: .bottom) { GradientBar(height: 1) }
                     ScrollView {
                         Text(scriptEngine.consoleOutput.isEmpty ? "No output" : scriptEngine.consoleOutput)
                             .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(scriptEngine.consoleOutput.isEmpty ? .tertiary : .primary)
+                            .foregroundStyle(scriptEngine.consoleOutput.isEmpty ? Color(white: 0.25) : Color.primary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(8)
                     }
+                    .background(HueBaseTheme.background)
                 }
                 .frame(minWidth: 200)
-                .background(Color(nsColor: .textBackgroundColor).opacity(0.5))
+                .background(HueBaseTheme.background)
             }
         }
     }
 
     private var editorToolbar: some View {
-        HStack {
+        HStack(spacing: 8) {
             Button(action: run) {
-                Label("Run", systemImage: "play.fill")
+                HStack(spacing: 4) {
+                    Image(systemName: "play.fill").font(.system(size: 10))
+                    Text("RUN").font(.system(size: 11, weight: .bold, design: .monospaced))
+                }
+                .padding(.horizontal, 12).padding(.vertical, 5)
+                .background(scriptEngine.isRunning ? HueBaseTheme.surface : HueBaseTheme.purple.opacity(0.2))
+                .overlay(RoundedRectangle(cornerRadius: 3).stroke(HueBaseTheme.purple, lineWidth: 1))
+                .cornerRadius(3)
+                .foregroundStyle(HueBaseTheme.accentGradient)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.plain)
             .disabled(scriptEngine.isRunning)
 
             Button(action: saveScript) {
-                Label("Save", systemImage: "square.and.arrow.down")
+                HStack(spacing: 4) {
+                    Image(systemName: "square.and.arrow.down").font(.system(size: 10))
+                    Text("SAVE").font(.system(size: 11, weight: .bold, design: .monospaced))
+                }
+                .padding(.horizontal, 12).padding(.vertical, 5)
+                .background(HueBaseTheme.surface)
+                .overlay(RoundedRectangle(cornerRadius: 3).stroke(HueBaseTheme.border, lineWidth: 1))
+                .cornerRadius(3)
+                .foregroundStyle(Color(white: 0.65))
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.plain)
 
             Spacer()
 
-            Menu("Templates") {
+            Menu("TEMPLATES") {
                 Button("Rainbow Chase") { source = rainbowChaseTemplate }
                 Button("Ping Pong") { source = pingPongTemplate }
                 Button("Blackout") { source = blackoutTemplate }
             }
             .menuStyle(.button)
+            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+            .foregroundStyle(Color(white: 0.5))
         }
-        .padding(.horizontal).padding(.vertical, 6)
+        .padding(.horizontal, 10).padding(.vertical, 7)
+        .background(HueBaseTheme.surfaceHigh)
+        .overlay(alignment: .bottom) { HueBaseTheme.border.frame(height: 1) }
     }
 
     private func run() {

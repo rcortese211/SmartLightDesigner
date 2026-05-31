@@ -1,6 +1,6 @@
 import Foundation
 
-enum BlendMode: String, Codable, CaseIterable, Identifiable {
+enum DMXBlendMode: String, Codable, CaseIterable, Identifiable {
     // Basic
     case normal       = "Normal"
     case override     = "Override"
@@ -97,7 +97,7 @@ struct Layer: Codable, Identifiable {
     var effectId: String
     var isEnabled: Bool
     var opacity: Double         // 0-1
-    var blendMode: BlendMode
+    var blendMode: DMXBlendMode
     var speed: Double           // 1.0 = normal
     var parameters: [String: ParameterValue]
     var fixtureIds: [UUID]      // empty = apply to all fixtures
@@ -108,7 +108,7 @@ struct Layer: Codable, Identifiable {
         effectId: String = "color_fill",
         isEnabled: Bool = true,
         opacity: Double = 1.0,
-        blendMode: BlendMode = .normal,
+        blendMode: DMXBlendMode = .normal,
         speed: Double = 1.0,
         parameters: [String: ParameterValue] = [:],
         fixtureIds: [UUID] = []

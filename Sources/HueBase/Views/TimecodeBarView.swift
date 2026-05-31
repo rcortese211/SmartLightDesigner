@@ -1,66 +1,55 @@
 import SwiftUI
 
-/// Compact timecode transport bar shown at the bottom of the main window.
 struct TimecodeBarView: View {
     @Environment(AppState.self) private var appState
     private var tc: TimecodeEngine { appState.timecodeEngine }
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 0) {
             // Source indicator
-            HStack(spacing: 4) {
-                Circle()
-                    .fill(tc.isRunning ? HueBaseTheme.purple : Color.secondary)
-                    .frame(width: 7, height: 7)
-                Text(tc.source.rawValue)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(tc.isRunning ? HueBaseTheme.active : Color(white: 0.22))
+                    .frame(width: 8, height: 8)
+                Text(tc.source.rawValue.uppercased())
+                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(tc.isRunning ? HueBaseTheme.active : Color(white: 0.38))
             }
+            .padding(.horizontal, 10)
 
-            Divider().frame(height: 14)
+            divider
 
             // Timecode display
             Text(tc.current.description)
-                .font(.system(.body, design: .monospaced).bold())
+                .font(.system(size: 15, weight: .bold, design: .monospaced))
                 .foregroundStyle(tc.isRunning
-                    ? HueBaseTheme.accentGradient
-                    : AnyShapeStyle(Color.secondary))
+                    ? AnyShapeStyle(HueBaseTheme.accentGradient)
+                    : AnyShapeStyle(Color(white: 0.50)))
+                .padding(.horizontal, 12)
 
             Text(tc.frameRate.label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                .foregroundStyle(Color(white: 0.32))
+                .padding(.trailing, 10)
 
-            Divider().frame(height: 14)
+            divider
 
-            // Transport controls (only active in internal mode)
-            HStack(spacing: 8) {
-                Button(action: { tc.locate(to: .zero) }) {
-                    Image(systemName: "backward.end.fill")
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(isInternal ? HueBaseTheme.purple : .secondary)
-                .disabled(!isInternal)
-
-                Button(action: {
+            // Transport controls
+            HStack(spacing: 2) {
+                transportButton(icon: "backward.end.fill") { tc.locate(to: .zero) }
+                transportButton(icon: tc.isRunning ? "pause.fill" : "play.fill") {
                     tc.isRunning ? tc.pause() : tc.play()
-                }) {
-                    Image(systemName: tc.isRunning ? "pause.fill" : "play.fill")
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(isInternal ? HueBaseTheme.purple : .secondary)
-                .disabled(!isInternal)
-
-                Button(action: { tc.stop(); tc.locate(to: .zero) }) {
-                    Image(systemName: "stop.fill")
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(isInternal ? HueBaseTheme.purple : .secondary)
-                .disabled(!isInternal)
+                transportButton(icon: "stop.fill") { tc.stop(); tc.locate(to: .zero) }
             }
+            .padding(.horizontal, 6)
+            .disabled(!isInternal)
+            .opacity(isInternal ? 1.0 : 0.30)
+
+            divider
 
             Spacer()
 
-            // Frame rate picker (internal only)
             if isInternal {
                 Picker("", selection: Binding(
                     get: { tc.frameRate },
@@ -71,13 +60,35 @@ struct TimecodeBarView: View {
                     }
                 }
                 .labelsHidden()
-                .frame(width: 160)
+                .frame(width: 130)
+                .padding(.horizontal, 8)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 5)
-        .background(HueBaseTheme.surface)
-        .overlay(alignment: .top) { GradientBar(height: 1) }
+        .frame(height: 28)
+        .background(HueBaseTheme.surfaceHigh)
+        .overlay(alignment: .top) {
+            GradientBar(height: 1)
+        }
+    }
+
+    private var divider: some View {
+        HueBaseTheme.border.frame(width: 1).padding(.vertical, 4)
+    }
+
+    private func transportButton(icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 10))
+                .frame(width: 22, height: 20)
+                .foregroundStyle(isInternal ? HueBaseTheme.purple : Color(white: 0.38))
+                .background(HueBaseTheme.surface)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 2)
+                        .stroke(HueBaseTheme.border, lineWidth: 1)
+                )
+                .cornerRadius(2)
+        }
+        .buttonStyle(.plain)
     }
 
     private var isInternal: Bool { tc.source == .internal_ }

@@ -106,7 +106,7 @@ final class DMXEngine {
         into universe: inout [UInt8],
         startAddress: Int,
         opacity: Double,
-        blendMode: BlendMode
+        blendMode: DMXBlendMode
     ) {
         for (offset, srcByte) in channels {
             let idx = startAddress + offset
