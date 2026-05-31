@@ -10,9 +10,9 @@ struct BenchmarkView: View {
     enum BenchmarkState { case idle, running, done }
 
     struct BenchmarkResults {
-        let effectRenderFPS: Double         // simulated renders/sec per fixture
-        let compositeFPS: Double            // full-frame composite rate
-        let sustainedOutputFPS: Double      // measured DMX engine tick rate
+        let effectRenderFPS: Double
+        let compositeFPS: Double
+        let sustainedOutputFPS: Double
         let maxRecommendedFixtures: Int
         let universesRecommended: Int
         let grade: Grade
@@ -27,8 +27,8 @@ struct BenchmarkView: View {
                 switch self {
                 case .excellent: return HueBaseTheme.blue
                 case .good:      return HueBaseTheme.purple
-                case .moderate:  return .orange
-                case .limited:   return .red
+                case .moderate:  return HueBaseTheme.active
+                case .limited:   return HueBaseTheme.danger
                 }
             }
         }
@@ -36,73 +36,91 @@ struct BenchmarkView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                headerSection
-                if state == .running { progressSection }
-                if let r = results    { resultsSection(r) }
-                if state == .idle     { infoSection }
+            VStack(spacing: 0) {
+                PanelHeader(title: "Performance Benchmark")
+                VStack(spacing: 16) {
+                    headerSection
+                    if state == .running { progressSection }
+                    if let r = results    { resultsSection(r) }
+                    if state == .idle     { infoSection }
+                }
+                .padding(20)
             }
-            .padding(32)
         }
         .navigationTitle("Benchmark")
         .background(HueBaseTheme.background)
     }
 
     private var headerSection: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             HueBaseTheme.accentGradient
                 .mask(Image(systemName: "gauge.with.needle")
                     .resizable().scaledToFit())
-                .frame(width: 64, height: 64)
+                .frame(width: 48, height: 48)
 
-            Text("Performance Benchmark")
-                .font(.largeTitle.bold())
+            Text("DMX Render Benchmark")
+                .font(.system(size: 20, weight: .bold, design: .monospaced))
                 .foregroundStyle(HueBaseTheme.accentGradient)
 
-            Text("Measures your system's DMX rendering throughput and recommends optimal fixture count and universe configuration.")
+            Text("Measures system DMX rendering throughput and recommends optimal fixture count and universe configuration.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: 540)
+                .frame(maxWidth: 500)
 
             Button(action: runBenchmark) {
-                Label(state == .done ? "Run Again" : "Run Benchmark",
-                      systemImage: "play.fill")
-                    .font(.headline)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 10)
+                HStack(spacing: 6) {
+                    Image(systemName: "play.fill").font(.system(size: 11))
+                    Text(state == .done ? "RUN AGAIN" : "RUN BENCHMARK")
+                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                        .kerning(1)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 8)
+                .background(state == .running ? HueBaseTheme.surface : HueBaseTheme.purple.opacity(0.15))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 3)
+                        .stroke(HueBaseTheme.purple, lineWidth: 1)
+                )
+                .cornerRadius(3)
+                .foregroundStyle(HueBaseTheme.accentGradient)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(HueBaseTheme.purple)
+            .buttonStyle(.plain)
             .disabled(state == .running)
         }
     }
 
     private var progressSection: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             Text(currentTest)
-                .font(.callout)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(HueBaseTheme.accentGradient)
             ProgressView(value: progress)
                 .tint(HueBaseTheme.purple)
                 .frame(maxWidth: 400)
         }
-        .padding()
-        .background(HueBaseTheme.surface.cornerRadius(12))
+        .padding(12)
+        .background(HueBaseTheme.surface)
+        .overlay(
+            RoundedRectangle(cornerRadius: 3)
+                .stroke(HueBaseTheme.border, lineWidth: 1)
+        )
+        .cornerRadius(3)
     }
 
     @ViewBuilder
     private func resultsSection(_ r: BenchmarkResults) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             HStack {
-                Text("Results")
-                    .font(.title2.bold())
+                Text("RESULTS")
+                    .font(.system(size: 11, weight: .heavy, design: .monospaced))
                     .foregroundStyle(HueBaseTheme.accentGradient)
+                    .kerning(1.5)
                 Spacer()
                 gradeTag(r.grade)
             }
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                 metricCard("Effect Renders/sec",
                            value: String(format: "%.0f", r.effectRenderFPS),
                            icon: "sparkles")
@@ -117,86 +135,116 @@ struct BenchmarkView: View {
                            icon: "cable.connector")
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Recommendations")
-                    .font(.headline)
-                    .foregroundStyle(HueBaseTheme.accentGradient)
-                GradientBar(height: 1)
-                recommendationRow("Max fixtures at 44 fps", value: "\(r.maxRecommendedFixtures)")
-                recommendationRow("Universes supported", value: "\(r.universesRecommended)")
-                recommendationRow("Target frame rate",
-                                  value: r.sustainedOutputFPS >= 40 ? "44 fps (full)" : "30 fps (throttled)")
-                recommendationRow("Effects engine",
-                                  value: r.compositeFPS >= 100 ? "All effects available" : "Avoid Sparkle + Strobe together")
+            VStack(alignment: .leading, spacing: 0) {
+                PanelHeader(title: "Recommendations")
+                VStack(spacing: 0) {
+                    recommendationRow("Max fixtures at 44 fps", value: "\(r.maxRecommendedFixtures)")
+                    Divider().background(HueBaseTheme.border)
+                    recommendationRow("Universes supported", value: "\(r.universesRecommended)")
+                    Divider().background(HueBaseTheme.border)
+                    recommendationRow("Target frame rate",
+                                      value: r.sustainedOutputFPS >= 40 ? "44 fps (full)" : "30 fps (throttled)")
+                    Divider().background(HueBaseTheme.border)
+                    recommendationRow("Effects engine",
+                                      value: r.compositeFPS >= 100 ? "All effects available" : "Avoid Sparkle + Strobe together")
+                }
+                .padding(.horizontal, 12)
             }
-            .padding(16)
-            .background(HueBaseTheme.surface.cornerRadius(12))
+            .background(HueBaseTheme.surface)
+            .overlay(
+                RoundedRectangle(cornerRadius: 3)
+                    .stroke(HueBaseTheme.border, lineWidth: 1)
+            )
+            .cornerRadius(3)
         }
     }
 
     private var infoSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("What is tested")
-                .font(.headline)
-                .foregroundStyle(HueBaseTheme.accentGradient)
-            GradientBar(height: 1)
-            infoRow("Effect Rendering",    "Renders all 6 built-in effects across a synthetic 512-fixture set and measures throughput.")
-            infoRow("Layer Compositing",   "Times a full 8-layer composite with all blend modes active.")
-            infoRow("DMX Engine Rate",     "Runs the live DMX engine for 3 seconds and measures actual tick frequency.")
-            infoRow("Output Throughput",   "Checks how many universes can be sent at full frame rate.")
+        VStack(alignment: .leading, spacing: 0) {
+            PanelHeader(title: "What is tested")
+            VStack(alignment: .leading, spacing: 0) {
+                infoRow("Effect Rendering",  "Renders all 6 built-in effects across a synthetic 512-fixture set.")
+                Divider().background(HueBaseTheme.border)
+                infoRow("Layer Compositing", "Times a full 8-layer composite with all blend modes active.")
+                Divider().background(HueBaseTheme.border)
+                infoRow("DMX Engine Rate",   "Runs the live DMX engine for 3 seconds, measures tick frequency.")
+                Divider().background(HueBaseTheme.border)
+                infoRow("Output Throughput", "Checks how many universes can be sent at full frame rate.")
+            }
+            .padding(.horizontal, 12)
         }
-        .padding(16)
-        .background(HueBaseTheme.surface.cornerRadius(12))
-        .frame(maxWidth: 540)
+        .background(HueBaseTheme.surface)
+        .overlay(
+            RoundedRectangle(cornerRadius: 3)
+                .stroke(HueBaseTheme.border, lineWidth: 1)
+        )
+        .cornerRadius(3)
+        .frame(maxWidth: 520)
     }
 
     // MARK: - Helpers
 
     private func gradeTag(_ grade: BenchmarkResults.Grade) -> some View {
-        Text(grade.rawValue)
-            .font(.caption.bold())
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(grade.color.opacity(0.2))
+        Text(grade.rawValue.uppercased())
+            .font(.system(size: 9, weight: .heavy, design: .monospaced))
+            .kerning(1)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(grade.color.opacity(0.15))
             .foregroundStyle(grade.color)
-            .clipShape(Capsule())
-            .overlay(Capsule().stroke(grade.color.opacity(0.5), lineWidth: 1))
+            .overlay(
+                RoundedRectangle(cornerRadius: 2)
+                    .stroke(grade.color.opacity(0.5), lineWidth: 1)
+            )
+            .cornerRadius(2)
     }
 
     private func metricCard(_ label: String, value: String, icon: String) -> some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 4) {
             Image(systemName: icon)
-                .font(.title2)
+                .font(.system(size: 18))
                 .foregroundStyle(HueBaseTheme.accentGradient)
             Text(value)
-                .font(.title.monospacedDigit().bold())
+                .font(.system(.title2, design: .monospaced).bold())
                 .foregroundStyle(.primary)
             Text(label)
-                .font(.caption)
+                .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding(16)
-        .background(HueBaseTheme.surface.cornerRadius(10))
-        .overlay(RoundedRectangle(cornerRadius: 10)
-            .stroke(HueBaseTheme.purple.opacity(0.2), lineWidth: 1))
+        .padding(12)
+        .background(HueBaseTheme.surface)
+        .overlay(
+            RoundedRectangle(cornerRadius: 3)
+                .stroke(HueBaseTheme.purple.opacity(0.3), lineWidth: 1)
+        )
+        .cornerRadius(3)
     }
 
     private func recommendationRow(_ label: String, value: String) -> some View {
         HStack {
-            Text(label).foregroundStyle(.secondary)
+            Text(label)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(.secondary)
             Spacer()
-            Text(value).bold().foregroundStyle(HueBaseTheme.purple)
+            Text(value)
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .foregroundStyle(HueBaseTheme.purple)
         }
-        .font(.callout)
+        .padding(.vertical, 8)
     }
 
     private func infoRow(_ title: String, _ description: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.callout.bold())
-            Text(description).font(.caption).foregroundStyle(.secondary)
+            Text(title)
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .foregroundStyle(HueBaseTheme.accentGradient)
+            Text(description)
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
         }
+        .padding(.vertical, 8)
     }
 
     // MARK: - Benchmark runner
@@ -229,7 +277,6 @@ struct BenchmarkView: View {
     ) async -> BenchmarkResults {
         let registry = EffectRegistry.shared
 
-        // Build synthetic fixture set
         let syntheticProfile = FixtureProfile(
             id: UUID(), name: "Bench RGB", manufacturer: "Bench",
             channels: [
@@ -245,7 +292,6 @@ struct BenchmarkView: View {
                     positionX: Double(i) / Double(fixtureCount))
         }
 
-        // ---- Test 1: Effect render throughput ----
         await progressCallback(0.1, "Testing effect render throughput…")
         let effects = registry.allEffects.compactMap { registry.effect(for: $0.id) }
         let t0 = Date()
@@ -264,7 +310,6 @@ struct BenchmarkView: View {
 
         await progressCallback(0.4, "Testing layer compositing…")
 
-        // ---- Test 2: Full composite timing ----
         let t1 = Date()
         var compositeFrames = 0
         var universeBuffer = Array(repeating: UInt8(0), count: 512)
@@ -284,13 +329,11 @@ struct BenchmarkView: View {
 
         await progressCallback(0.75, "Measuring sustained DMX frame rate…")
 
-        // ---- Test 3: Engine tick rate (run for 3 seconds, count ticks) ----
         let t2 = Date()
         var tickCount = 0
         let targetInterval = 1.0 / 44.0
         while Date().timeIntervalSince(t2) < 3.0 {
             let tickStart = Date()
-            // Simulate a full engine tick
             var buf = Array(repeating: UInt8(0), count: 512)
             let effect = effects.first!
             for fixture in fixtures.prefix(128) {
@@ -312,7 +355,6 @@ struct BenchmarkView: View {
 
         await progressCallback(0.95, "Computing recommendations…")
 
-        // ---- Derive recommendations ----
         let timePerFixture = 1.5 / Double(renderCount / effects.count)
         let maxFixtures = Int(min(512 * 4, (1.0 / 44.0) / max(0.000001, timePerFixture)))
         let universesRec = min(64, max(1, maxFixtures / 170))
