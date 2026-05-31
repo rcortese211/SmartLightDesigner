@@ -146,6 +146,22 @@ struct EffectsView: View {
                             Button("Recall to Program A") { recallPalette(palette) }
                             Button("Recall to Program B") { recallPaletteToBDeck(palette) }
                             Divider()
+                            Menu("Add to Timeline Track…") {
+                                ForEach(Array(appState.show.timeline.tracks.enumerated()), id: \.element.id) { idx, track in
+                                    Button(track.name) { addPaletteToTimeline(palette, trackIndex: idx) }
+                                }
+                                if appState.show.timeline.tracks.isEmpty {
+                                    Text("No tracks — add one in the Timeline tab")
+                                        .foregroundStyle(.secondary)
+                                }
+                                Divider()
+                                Button("New Track") {
+                                    let idx = appState.show.timeline.tracks.count
+                                    appState.show.timeline.tracks.append(TimelineTrack(name: "Track \(idx + 1)"))
+                                    addPaletteToTimeline(palette, trackIndex: idx)
+                                }
+                            }
+                            Divider()
                             Button("Delete Palette", role: .destructive) { deletePalette(palette, from: folder) }
                         }
                         .onTapGesture(count: 2) { recallPalette(palette) }
@@ -459,6 +475,18 @@ struct EffectsView: View {
         appState.programBLayers = palette.layers   // keep same IDs for live-edit mirroring
         appState.recalledPaletteIDOnB = palette.id
         appState.statusMessage = "B: \(palette.name)"
+    }
+
+    private func addPaletteToTimeline(_ palette: EffectPalette, trackIndex: Int) {
+        guard trackIndex < appState.show.timeline.tracks.count else { return }
+        let t = appState.timelineEngine.playheadTime
+        let clip = TimelineClip(
+            startTime: max(0, t),
+            layers: palette.layers,
+            label: palette.name,
+            colorHue: Double.random(in: 0...1)
+        )
+        appState.show.timeline.tracks[trackIndex].clips.append(clip)
     }
 
     private func storeLiveAsNewPalette() {

@@ -279,14 +279,16 @@ struct TimelineView: View {
                         }
                         .frame(width: totalWidth)
 
-                        // Per-second scroll anchors used by auto-follow
-                        let secCount = Int(totalDuration)
-                        ForEach(0...secCount, id: \.self) { sec in
-                            Color.clear
-                                .frame(width: 1, height: 1)
-                                .offset(x: CGFloat(sec) * pixelsPerSecond)
-                                .id("tls-\(sec)")
+                        // Per-second scroll anchors — real layout positions via HStack
+                        HStack(spacing: 0) {
+                            ForEach(0...Int(totalDuration), id: \.self) { sec in
+                                Color.clear
+                                    .frame(width: max(1, CGFloat(pixelsPerSecond)), height: 1)
+                                    .id("tls-\(sec)")
+                            }
                         }
+                        .frame(height: 1, alignment: .topLeading)
+                        .allowsHitTesting(false)
 
                         playheadOverlay
                     }
