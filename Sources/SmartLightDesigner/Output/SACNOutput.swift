@@ -1,0 +1,123 @@
+import Foundation
+import Network
+
+// E1.31 (sACN) output driver
+final class SACNOutput: DMXOutputDriver {
+    var isEnabled: Bool
+    var config: SACNConfiguration
+    private var connections: [Int: NWConnection] = [:]  // universe -> connection
+    private var sequence: UInt8 = 0
+
+    // sACN source CID — fixed per session
+    private let cid: [UInt8] = (0..<16).map { _ in UInt8.random(in: 0...255) }
+
+    init(config: SACNConfiguration) {
+        self.config = config
+        self.isEnabled = config.enabled
+    }
+
+    func start() {}
+    func stop() {
+        connections.values.forEach { $0.cancel() }
+        connections.removeAll()
+    }
+
+    func send(universe: Int, values: [UInt8]) {
+        guard isEnabled else { return }
+
+        let outputUniverse = config.universeMappings
+            .first(where: { $0.localUniverse == universe })?.outputUniverse ?? universe
+
+        if connections[outputUniverse] == nil {
+            connections[outputUniverse] = makeConnection(universe: outputUniverse)
+        }
+        guard let conn = connections[outputUniverse] else { return }
+
+        sequence = sequence &+ 1
+        let packet = buildSACNPacket(universe: outputUniverse, sequence: sequence, values: values)
+        conn.send(content: packet, completion: .idempotent)
+    }
+
+    private func makeConnection(universe: Int) -> NWConnection {
+        let endpoint: NWEndpoint
+        if config.useMulticast {
+            // sACN multicast: 239.255.X.Y where X = universe high byte, Y = universe low byte
+            let hi = (universe >> 8) & 0xFF
+            let lo = universe & 0xFF
+            let ip = "239.255.\(hi).\(lo)"
+            let host = NWEndpoint.Host(ip)
+            let port = NWEndpoint.Port(rawValue: config.port) ?? 5568
+            endpoint = .hostPort(host: host, port: port)
+        } else {
+            let host = NWEndpoint.Host("255.255.255.255")
+            let port = NWEndpoint.Port(rawValue: config.port) ?? 5568
+            endpoint = .hostPort(host: host, port: port)
+        }
+        let conn = NWConnection(to: endpoint, using: .udp)
+        conn.start(queue: .global(qos: .userInteractive))
+        return conn
+    }
+
+    private func buildSACNPacket(universe: Int, sequence: UInt8, values: [UInt8]) -> Data {
+        let dataLen = values.count
+        let dmpLen  = 11 + dataLen
+        let framingLen = 77 + dataLen
+        let rootLen    = 88 + dataLen
+        let totalLen   = 126 + dataLen
+
+        var p = Data(capacity: totalLen)
+
+        // --- Root Layer ---
+        p.append(contentsOf: [0x00, 0x10])  // Preamble size
+        p.append(contentsOf: [0x00, 0x00])  // Postamble size
+        // ACN packet identifier (12 bytes)
+        p.append(contentsOf: [0x41,0x53,0x43,0x2D,0x45,0x31,0x2E,0x31,0x37,0x00,0x00,0x00])
+        // Flags + length (root)
+        let rootFlags = UInt16(0x7000) | UInt16(rootLen)
+        p.append(UInt8(rootFlags >> 8)); p.append(UInt8(rootFlags & 0xFF))
+        // Vector VECTOR_ROOT_E131_DATA = 0x00000004
+        p.append(contentsOf: [0x00, 0x00, 0x00, 0x04])
+        // CID (16 bytes)
+        p.append(contentsOf: cid)
+
+        // --- Framing Layer ---
+        let framingFlags = UInt16(0x7000) | UInt16(framingLen)
+        p.append(UInt8(framingFlags >> 8)); p.append(UInt8(framingFlags & 0xFF))
+        // Vector VECTOR_E131_DATA_PACKET = 0x00000002
+        p.append(contentsOf: [0x00, 0x00, 0x00, 0x02])
+        // Source Name (64 bytes, null-padded)
+        var sourceName = Array(config.sourceName.utf8.prefix(63))
+        sourceName.append(contentsOf: Array(repeating: 0, count: 64 - sourceName.count))
+        p.append(contentsOf: sourceName)
+        // Priority
+        p.append(config.priority)
+        // Synchronization address
+        p.append(contentsOf: [0x00, 0x00])
+        // Sequence
+        p.append(sequence)
+        // Options
+        p.append(0)
+        // Universe
+        p.append(UInt8((universe >> 8) & 0xFF)); p.append(UInt8(universe & 0xFF))
+
+        // --- DMP Layer ---
+        let dmpFlags = UInt16(0x7000) | UInt16(dmpLen)
+        p.append(UInt8(dmpFlags >> 8)); p.append(UInt8(dmpFlags & 0xFF))
+        // Vector VECTOR_DMP_SET_PROPERTY = 0x02
+        p.append(0x02)
+        // Address type & data type
+        p.append(0xA1)
+        // First property address
+        p.append(contentsOf: [0x00, 0x00])
+        // Address increment
+        p.append(contentsOf: [0x00, 0x01])
+        // Property count (start code + data)
+        let propCount = UInt16(dataLen + 1)
+        p.append(UInt8(propCount >> 8)); p.append(UInt8(propCount & 0xFF))
+        // Start code 0x00 + DMX data
+        p.append(0x00)
+        p.append(contentsOf: values)
+
+        return p
+    }
+}
