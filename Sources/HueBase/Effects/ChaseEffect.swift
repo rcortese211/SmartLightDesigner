@@ -6,7 +6,7 @@ struct ChaseEffect: Effect {
 
     let parameterDefinitions: [EffectParameterDefinition] = [
         EffectParameterDefinition(
-            key: "color_on", name: "On Color", type: .color,
+            key: "color_on",  name: "On Color",  type: .color,
             defaultValue: .color(r: 1, g: 1, b: 1)
         ),
         EffectParameterDefinition(
@@ -18,8 +18,11 @@ struct ChaseEffect: Effect {
             defaultValue: .double(3.0)
         ),
         EffectParameterDefinition(
-            key: "direction", name: "Direction (0=fwd, 1=rev)", type: .double(min: 0, max: 1),
-            defaultValue: .double(0.0)
+            key: "direction", name: "Direction",
+            type: .select(options: ["Left→Right", "Right→Left",
+                                    "Top→Bottom", "Bottom→Top",
+                                    "Radial Out",  "Radial In"]),
+            defaultValue: .string("Left→Right")
         )
     ]
 
@@ -27,22 +30,38 @@ struct ChaseEffect: Effect {
         fixture: Fixture, profile: FixtureProfile,
         parameters: [String: ParameterValue], time: Double, speed: Double
     ) -> FixtureChannels {
-        let (onR, onG, onB) = parameters["color_on"]?.colorValue ?? (1, 1, 1)
+        let (onR, onG, onB)   = parameters["color_on"]?.colorValue  ?? (1, 1, 1)
         let (offR, offG, offB) = parameters["color_off"]?.colorValue ?? (0, 0, 0)
-        let density = parameters["density"]?.doubleValue ?? 3.0
-        let direction = (parameters["direction"]?.doubleValue ?? 0.0) > 0.5 ? -1.0 : 1.0
+        let density  = max(1.0, parameters["density"]?.doubleValue ?? 3.0)
+        let dirStr   = parameters["direction"]?.stringValue ?? "Left→Right"
 
-        let phase = (time * speed * direction).truncatingRemainder(dividingBy: density)
-        let idx = Int(fixture.positionX * 100) % Int(max(1, density))
-        let phaseInt = Int(abs(phase))
-        let isOn = (idx + phaseInt) % Int(max(1, density)) == 0
+        // Map this fixture to a 0–1 position in the chase sequence
+        let fixturePos: Double
+        switch dirStr {
+        case "Right→Left":  fixturePos = 1.0 - fixture.positionX
+        case "Top→Bottom":  fixturePos = fixture.positionY
+        case "Bottom→Top":  fixturePos = 1.0 - fixture.positionY
+        case "Radial Out":
+            let dx = fixture.positionX - 0.5, dy = fixture.positionY - 0.5
+            fixturePos = min(1.0, sqrt(dx*dx + dy*dy) * 1.4142)
+        case "Radial In":
+            let dx = fixture.positionX - 0.5, dy = fixture.positionY - 0.5
+            fixturePos = 1.0 - min(1.0, sqrt(dx*dx + dy*dy) * 1.4142)
+        default:            fixturePos = fixture.positionX   // Left→Right
+        }
+
+        // Wave front position (0–1), advances with time
+        let wavePos    = (time * speed * 0.25).truncatingRemainder(dividingBy: 1.0)
+        let windowSize = 1.0 / density
+        // Wrap-around distance from fixture to the wave front
+        let diff = (fixturePos - wavePos + 1.0).truncatingRemainder(dividingBy: 1.0)
+        let isOn = diff < windowSize
 
         var result: FixtureChannels = [:]
-        if isOn {
-            setRGB(&result, profile: profile, r: onR, g: onG, b: onB)
-        } else {
-            setRGB(&result, profile: profile, r: offR, g: offG, b: offB)
-        }
+        setRGB(&result, profile: profile,
+               r: isOn ? onR : offR,
+               g: isOn ? onG : offG,
+               b: isOn ? onB : offB)
         return result
     }
 }

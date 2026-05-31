@@ -18,6 +18,13 @@ struct RainbowEffect: Effect {
             defaultValue: .double(1.0)
         ),
         EffectParameterDefinition(
+            key: "direction", name: "Direction",
+            type: .select(options: ["Left→Right", "Right→Left",
+                                    "Top→Bottom", "Bottom→Top",
+                                    "Radial Out",  "Radial In"]),
+            defaultValue: .string("Left→Right")
+        ),
+        EffectParameterDefinition(
             key: "cycle_all", name: "Cycle All Together", type: .bool,
             defaultValue: .bool(false)
         )
@@ -31,11 +38,29 @@ struct RainbowEffect: Effect {
         let brightness  = parameters["brightness"]?.doubleValue ?? 1.0
         let spread      = parameters["spread"]?.doubleValue ?? 1.0
         let cycleAll    = parameters["cycle_all"]?.boolValue ?? false
+        let dirStr      = parameters["direction"]?.stringValue ?? "Left→Right"
 
         let timeOffset = time * speed * 0.1
-        let position = cycleAll ? 0.0 : fixture.positionX
 
-        let hue = (position * spread + timeOffset).truncatingRemainder(dividingBy: 1.0)
+        let axisPos: Double
+        if cycleAll {
+            axisPos = 0.0
+        } else {
+            switch dirStr {
+            case "Right→Left":  axisPos = 1.0 - fixture.positionX
+            case "Top→Bottom":  axisPos = fixture.positionY
+            case "Bottom→Top":  axisPos = 1.0 - fixture.positionY
+            case "Radial Out":
+                let dx = fixture.positionX - 0.5, dy = fixture.positionY - 0.5
+                axisPos = min(1.0, sqrt(dx*dx + dy*dy) * 1.4142)
+            case "Radial In":
+                let dx = fixture.positionX - 0.5, dy = fixture.positionY - 0.5
+                axisPos = 1.0 - min(1.0, sqrt(dx*dx + dy*dy) * 1.4142)
+            default:            axisPos = fixture.positionX   // Left→Right
+            }
+        }
+
+        let hue = (axisPos * spread + timeOffset).truncatingRemainder(dividingBy: 1.0)
         let (r, g, b) = hsvToRGB(h: hue, s: saturation, v: brightness)
 
         var result: FixtureChannels = [:]

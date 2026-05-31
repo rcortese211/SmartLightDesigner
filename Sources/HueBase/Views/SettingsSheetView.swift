@@ -27,6 +27,8 @@ struct SettingsSheetView: View {
             TabView {
                 PatchView()
                     .tabItem { Label("Patch", systemImage: "cable.connector") }
+                FixtureMapView()
+                    .tabItem { Label("Map", systemImage: "map") }
                 OutputSettingsView()
                     .tabItem { Label("Output", systemImage: "network") }
             }
