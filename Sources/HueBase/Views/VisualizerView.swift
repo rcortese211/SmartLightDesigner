@@ -49,24 +49,7 @@ struct VisualizerView: View {
                         Canvas { ctx, size in
                             drawGrid(ctx: &ctx, size: size)
                             if showOverlayEffect {
-                                if layoutMode == .freeform {
-                                    drawOverlay(ctx: &ctx, size: size,
-                                                fixtures: fixtures, universeData: universeData,
-                                                positionFn: { fixturePosition($0, in: size) })
-                                } else {
-                                    let cols = max(1, Int(ceil(sqrt(Double(fixtures.count) * (size.width / max(1, size.height))))))
-                                    let cellW = size.width / CGFloat(cols)
-                                    let cellH = size.height / CGFloat(max(1, Int(ceil(Double(fixtures.count) / Double(cols)))))
-                                    drawOverlay(ctx: &ctx, size: size,
-                                                fixtures: fixtures, universeData: universeData,
-                                                positionFn: { fixture in
-                                                    guard let i = fixtures.firstIndex(where: { $0.id == fixture.id }) else {
-                                                        return .zero
-                                                    }
-                                                    return CGPoint(x: cellW * CGFloat(i % cols) + cellW / 2,
-                                                                   y: cellH * CGFloat(i / cols) + cellH / 2)
-                                                })
-                                }
+                                drawOverlay(ctx: &ctx, size: size)
                             }
                             if layoutMode == .freeform {
                                 drawFixtures(ctx: &ctx, size: size,
@@ -234,22 +217,64 @@ struct VisualizerView: View {
         ctx.stroke(path, with: .color(Color(red: 0.12, green: 0.09, blue: 0.22)), lineWidth: 0.5)
     }
 
-    private func drawOverlay(ctx: inout GraphicsContext, size: CGSize,
-                              fixtures: [Fixture], universeData: [Int: [UInt8]],
-                              positionFn: (Fixture) -> CGPoint) {
-        let spread = CGFloat(fixtureSize) * 5
-        for fixture in fixtures {
-            let color = fixtureColor(fixture, universeData: universeData)
-            let resolved = color.resolve(in: EnvironmentValues())
-            let brightness = Double(max(resolved.red, resolved.green, resolved.blue))
-            guard brightness > 0.01 else { continue }
-            let pos = positionFn(fixture)
-            let radius = spread + CGFloat(brightness) * CGFloat(fixtureSize) * 3
-            let gradient = Gradient(colors: [color.opacity(0.35 * brightness), .clear])
-            let rect = CGRect(x: pos.x - radius, y: pos.y - radius,
-                              width: radius * 2, height: radius * 2)
-            ctx.fill(Path(ellipseIn: rect),
-                     with: .radialGradient(gradient, center: pos, startRadius: 0, endRadius: radius))
+    // Reused across drawOverlay calls — fixed UUIDs so no heap churn per frame
+    private static let overlayProfileID = UUID()
+    private static let overlayProfile = FixtureProfile(
+        id: overlayProfileID,
+        name: "Overlay",
+        manufacturer: "",
+        channels: [
+            FixtureChannel(id: UUID(), name: "Red",   offset: 0, defaultValue: 0),
+            FixtureChannel(id: UUID(), name: "Green", offset: 1, defaultValue: 0),
+            FixtureChannel(id: UUID(), name: "Blue",  offset: 2, defaultValue: 0)
+        ]
+    )
+    private static let overlayFixtureID = UUID()
+
+    private func drawOverlay(ctx: inout GraphicsContext, size: CGSize) {
+        let layers = appState.show.layers.filter { $0.isEnabled }
+        guard !layers.isEmpty else { return }
+        let registry = EffectRegistry.shared
+        let profile  = Self.overlayProfile
+        let paramOverrides = appState.engine.parameterOverrides
+        let time = Date().timeIntervalSinceReferenceDate
+
+        // Coarse pixel grid — each cell is evaluated as a virtual fixture
+        let cellSize: CGFloat = 20
+        let cols = Int(ceil(size.width  / cellSize))
+        let rows = Int(ceil(size.height / cellSize))
+
+        // Single reused struct — only positionX/Y change per cell
+        var vf = Fixture(id: Self.overlayFixtureID, name: "", profileId: profile.id,
+                         universe: 0, startAddress: 1, positionX: 0, positionY: 0)
+
+        for row in 0..<rows {
+            for col in 0..<cols {
+                vf.positionX = (Double(col) + 0.5) / Double(cols)
+                vf.positionY = (Double(row) + 0.5) / Double(rows)
+
+                var r: Double = 0, g: Double = 0, b: Double = 0
+                for layer in layers {
+                    guard let effect = registry.effect(for: layer.effectId) else { continue }
+                    var params = layer.parameters
+                    if let ov = paramOverrides[layer.id] { params.merge(ov) { _, new in new } }
+                    let ch = effect.render(fixture: vf, profile: profile,
+                                           parameters: params, time: time, speed: layer.speed)
+                    let sr = Double(ch[0] ?? 0) / 255.0
+                    let sg = Double(ch[1] ?? 0) / 255.0
+                    let sb = Double(ch[2] ?? 0) / 255.0
+                    let a  = layer.opacity
+                    r += (sr - r) * a
+                    g += (sg - g) * a
+                    b += (sb - b) * a
+                }
+                guard r > 0.004 || g > 0.004 || b > 0.004 else { continue }
+
+                let rect = CGRect(x: CGFloat(col) * cellSize, y: CGFloat(row) * cellSize,
+                                   width: cellSize, height: cellSize)
+                ctx.fill(Path(rect),
+                         with: .color(Color(red: r, green: g, blue: b).opacity(0.55)))
+            }
         }
     }
 
