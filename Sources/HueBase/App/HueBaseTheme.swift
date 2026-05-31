@@ -64,7 +64,7 @@ struct ThemeLabel: View {
     }
 }
 
-// Compact panel header — Madrix-style dense header strip
+// Compact panel header — dense DMX console-style header strip
 struct PanelHeader: View {
     let title: String
     var body: some View {

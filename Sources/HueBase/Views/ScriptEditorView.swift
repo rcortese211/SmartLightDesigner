@@ -77,7 +77,7 @@ struct ScriptEditorView: View {
                     ScrollView {
                         Text(scriptEngine.consoleOutput.isEmpty ? "No output" : scriptEngine.consoleOutput)
                             .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(scriptEngine.consoleOutput.isEmpty ? Color(white: 0.25) : .primary)
+                            .foregroundStyle(scriptEngine.consoleOutput.isEmpty ? Color(white: 0.25) : Color.primary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(8)
                     }

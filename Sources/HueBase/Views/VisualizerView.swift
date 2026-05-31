@@ -168,7 +168,7 @@ struct VisualizerView: View {
                                 fixture: Fixture,
                                 universeValues: [Int: [UInt8]],
                                 overrideRadius: CGFloat? = nil) {
-        let radius = overrideRadius ?? (fixtureSize / 2)
+        let radius: CGFloat = overrideRadius ?? CGFloat(fixtureSize) / 2
         let color = fixtureColor(fixture, universeValues: universeValues)
         let rect = CGRect(x: pos.x - radius, y: pos.y - radius,
                           width: radius * 2, height: radius * 2)

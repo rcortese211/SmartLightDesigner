@@ -19,7 +19,21 @@ struct EffectsView: View {
             layerColumn
         }
         .navigationTitle("Effects")
-        .toolbar { toolbarItems }
+        .toolbar {
+            ToolbarItemGroup {
+                Button(action: storeLiveAsNewPalette) {
+                    Label("Store Live Stack", systemImage: "tray.and.arrow.down")
+                }
+                .disabled(selectedFolderID == nil)
+                .help("Store the current live layer stack as a new palette in the selected folder")
+
+                Button(action: recallSelectedPalette) {
+                    Label("Recall Palette", systemImage: "bolt.fill")
+                }
+                .disabled(selectedPaletteID == nil)
+                .help("Load this palette's layers into the live engine stack")
+            }
+        }
         .sheet(isPresented: $showAddFolder) { AddFolderSheet(isPresented: $showAddFolder) }
         .sheet(isPresented: $showAddPalette) {
             AddPaletteSheet(isPresented: $showAddPalette, folderID: selectedFolderID)
@@ -224,25 +238,6 @@ struct EffectsView: View {
             }
         }
         .background(HueBaseTheme.surface)
-    }
-
-    // MARK: - Toolbar
-
-    @ToolbarContentBuilder
-    private var toolbarItems: some ToolbarContent {
-        ToolbarItemGroup {
-            Button(action: storeLiveAsNewPalette) {
-                Label("Store Live Stack", systemImage: "tray.and.arrow.down")
-            }
-            .disabled(selectedFolderID == nil)
-            .help("Store the current live layer stack as a new palette in the selected folder")
-
-            Button(action: recallSelectedPalette) {
-                Label("Recall Palette", systemImage: "bolt.fill")
-            }
-            .disabled(selectedPaletteID == nil)
-            .help("Load this palette's layers into the live engine stack")
-        }
     }
 
     // MARK: - Computed helpers
