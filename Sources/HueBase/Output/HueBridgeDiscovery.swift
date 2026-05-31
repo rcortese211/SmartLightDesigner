@@ -127,14 +127,16 @@ final class HueBridgeDiscovery {
                 self?.onError?("N-UPnP: \(error.localizedDescription)")
                 return
             }
+            // The response includes non-string fields (e.g. "port": 443), so decode as [String: Any]
             guard let data,
-                  let list = try? JSONDecoder().decode([[String: String]].self, from: data)
+                  let list = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
             else {
                 self?.onError?("N-UPnP: unexpected response from discovery server")
                 return
             }
             for dict in list {
-                guard let id = dict["id"], let ip = dict["internalipaddress"] else { continue }
+                guard let ip = dict["internalipaddress"] as? String else { continue }
+                let id = (dict["id"] as? String) ?? ip
                 let bridge = BridgeInfo(id: id, ip: ip, name: "Hue Bridge (\(ip))")
                 self?.addBridge(bridge)
             }

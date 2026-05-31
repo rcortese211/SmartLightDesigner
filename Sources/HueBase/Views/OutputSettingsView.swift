@@ -1,7 +1,16 @@
 import SwiftUI
 
+private enum HuePairingState {
+    case idle
+    case pairing
+    case success
+    case failure(String)
+}
+
 struct OutputSettingsView: View {
     @Environment(AppState.self) private var appState
+    @State private var huePairingState: HuePairingState = .idle
+    @State private var hueDiscoveryStatus: String = ""
 
     var body: some View {
         TabView {
@@ -194,15 +203,38 @@ struct OutputSettingsView: View {
                             }
                         }
                         LabeledContent("API Key") {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: 6) {
                                 HStack {
                                     SecureField("Tap Pair after pressing link button", text: $state.show.hue.username)
                                         .textFieldStyle(.roundedBorder)
-                                    Button("Pair") { pairHueBridge() }
-                                        .buttonStyle(.bordered)
-                                        .disabled(appState.show.hue.bridgeIP.isEmpty)
+                                    huePairingIndicator
+                                    Button(action: pairHueBridge) {
+                                        if case .pairing = huePairingState {
+                                            ProgressView().scaleEffect(0.6).frame(width: 40)
+                                        } else {
+                                            Text("Pair")
+                                        }
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .disabled(appState.show.hue.bridgeIP.isEmpty)
                                 }
                                 Text("Press the physical button on the bridge, then click Pair within 30 seconds.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                if case .failure(let msg) = huePairingState {
+                                    Text(msg)
+                                        .font(.caption)
+                                        .foregroundStyle(.red)
+                                } else if case .success = huePairingState {
+                                    Text("Paired successfully — API key saved.")
+                                        .font(.caption)
+                                        .foregroundStyle(.green)
+                                }
+                            }
+                        }
+                        if !hueDiscoveryStatus.isEmpty {
+                            LabeledContent("Discovery") {
+                                Text(hueDiscoveryStatus)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -246,41 +278,55 @@ struct OutputSettingsView: View {
         }
     }
 
+    @ViewBuilder
+    private var huePairingIndicator: some View {
+        switch huePairingState {
+        case .idle:    EmptyView()
+        case .pairing: EmptyView()
+        case .success:
+            Circle()
+                .fill(Color.green)
+                .frame(width: 9, height: 9)
+        case .failure:
+            Circle()
+                .fill(Color.red)
+                .frame(width: 9, height: 9)
+        }
+    }
+
     private func discoverHueBridges() {
+        hueDiscoveryStatus = "Scanning local network…"
         appState.bridgeDiscovery.onDiscovered = { bridges in
-            // Only IPv4 addresses come through; skip any that slipped past the filter
             let ipv4Bridges = bridges.filter { $0.ip.contains(".") }
             if let first = ipv4Bridges.first {
-                // Only overwrite if the field is empty or has a non-IPv4 value
                 let current = appState.show.hue.bridgeIP
                 if current.isEmpty || !current.contains(".") {
                     appState.show.hue.bridgeIP = first.ip
                 }
-                appState.statusMessage = ipv4Bridges.count == 1
+                hueDiscoveryStatus = ipv4Bridges.count == 1
                     ? "Found: \(first.ip)"
-                    : "Found \(ipv4Bridges.count) bridges — first: \(first.ip)"
+                    : "Found \(ipv4Bridges.count) bridges — using \(first.ip)"
             } else {
-                appState.statusMessage = "No Hue bridges found. Enter IP manually."
+                hueDiscoveryStatus = "No bridges found. Enter IP manually."
             }
         }
         appState.bridgeDiscovery.onError = { msg in
             if !msg.contains("mDNS") {
-                appState.statusMessage = "Discovery: \(msg)"
+                hueDiscoveryStatus = "Discovery error: \(msg)"
             }
         }
         appState.bridgeDiscovery.discover()
-        appState.statusMessage = "Scanning local network…"
     }
 
     private func pairHueBridge() {
-        appState.statusMessage = "Press the link button on your bridge, then wait…"
+        huePairingState = .pairing
         appState.bridgeDiscovery.pair(bridgeIP: appState.show.hue.bridgeIP) { result in
             switch result {
             case .success(let key):
                 appState.show.hue.username = key
-                appState.statusMessage = "Paired! API key saved."
+                huePairingState = .success
             case .failure(let err):
-                appState.statusMessage = "Pair failed: \(err.localizedDescription)"
+                huePairingState = .failure(err.localizedDescription)
             }
         }
     }
