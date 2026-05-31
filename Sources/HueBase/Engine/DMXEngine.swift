@@ -15,6 +15,10 @@ final class DMXEngine {
     // External parameter overrides — audio/MIDI inputs can write here
     var parameterOverrides: [UUID: [String: ParameterValue]] = [:]
 
+    // A/B crossfader — 0.0 = full Program A, 1.0 = full Program B
+    var crossfade: Double = 0
+    var programBLayers: [Layer] = []
+
     init(outputManager: DMXOutputManager) {
         self.outputManager = outputManager
         self.cueEngine = CueEngine()
@@ -49,56 +53,59 @@ final class DMXEngine {
         let time = Date().timeIntervalSinceReferenceDate - startTime
         cueEngine.updateFade(currentTime: Date().timeIntervalSinceReferenceDate)
 
-        let activeLayers = cueEngine.activeLayers ?? show.layers
+        let aLayers = cueEngine.activeLayers ?? show.layers
+        let newUniverseData: [Int: [UInt8]]
 
-        // Initialise universe buffers
-        let usedUniverses = Set(show.fixtures.map { $0.universe })
-        var newUniverseData: [Int: [UInt8]] = [:]
-        for u in usedUniverses {
-            newUniverseData[u] = Array(repeating: 0, count: 512)
-        }
-
-        // Render each enabled layer (bottom-to-top compositing)
-        for layer in activeLayers where layer.isEnabled {
-            guard let effect = registry.effect(for: layer.effectId) else { continue }
-
-            let fixtures: [Fixture]
-            if layer.fixtureIds.isEmpty {
-                fixtures = show.fixtures
-            } else {
-                fixtures = show.fixtures.filter { layer.fixtureIds.contains($0.id) }
+        if crossfade <= 0.001 {
+            newUniverseData = renderUniverses(layers: aLayers, show: show, time: time)
+        } else if crossfade >= 0.999 {
+            newUniverseData = renderUniverses(layers: programBLayers, show: show, time: time)
+        } else {
+            let dataA = renderUniverses(layers: aLayers, show: show, time: time)
+            let dataB = renderUniverses(layers: programBLayers, show: show, time: time)
+            let usedUniverses = Set(show.fixtures.map { $0.universe })
+            let fade = crossfade
+            var blended: [Int: [UInt8]] = [:]
+            for u in usedUniverses {
+                let a = dataA[u] ?? Array(repeating: 0, count: 512)
+                let b = dataB[u] ?? Array(repeating: 0, count: 512)
+                blended[u] = zip(a, b).map { UInt8(Double($0) * (1 - fade) + Double($1) * fade) }
             }
-
-            var effectParams = layer.parameters
-            // Merge any external overrides (audio/MIDI hook point)
-            if let overrides = parameterOverrides[layer.id] {
-                effectParams.merge(overrides) { _, new in new }
-            }
-
-            for fixture in fixtures {
-                guard let profile = show.profile(for: fixture) else { continue }
-                let rendered = effect.render(
-                    fixture: fixture,
-                    profile: profile,
-                    parameters: effectParams,
-                    time: time,
-                    speed: layer.speed
-                )
-                guard var universe = newUniverseData[fixture.universe] else { continue }
-                composite(
-                    rendered, into: &universe,
-                    startAddress: fixture.startAddress - 1,
-                    opacity: layer.opacity,
-                    blendMode: layer.blendMode
-                )
-                newUniverseData[fixture.universe] = universe
-            }
+            newUniverseData = blended
         }
 
         universeData = newUniverseData
         for (universe, values) in newUniverseData {
             outputManager.send(universe: universe, values: values)
         }
+    }
+
+    private func renderUniverses(layers: [Layer], show: Show, time: Double) -> [Int: [UInt8]] {
+        let usedUniverses = Set(show.fixtures.map { $0.universe })
+        var data: [Int: [UInt8]] = [:]
+        for u in usedUniverses { data[u] = Array(repeating: 0, count: 512) }
+
+        for layer in layers where layer.isEnabled {
+            guard let effect = registry.effect(for: layer.effectId) else { continue }
+            let fixtures: [Fixture] = layer.fixtureIds.isEmpty
+                ? show.fixtures
+                : show.fixtures.filter { layer.fixtureIds.contains($0.id) }
+            var effectParams = layer.parameters
+            if let overrides = parameterOverrides[layer.id] {
+                effectParams.merge(overrides) { _, new in new }
+            }
+            for fixture in fixtures {
+                guard let profile = show.profile(for: fixture) else { continue }
+                let rendered = effect.render(fixture: fixture, profile: profile,
+                                             parameters: effectParams, time: time, speed: layer.speed)
+                guard var universe = data[fixture.universe] else { continue }
+                composite(rendered, into: &universe,
+                          startAddress: fixture.startAddress - 1,
+                          opacity: layer.opacity, blendMode: layer.blendMode)
+                data[fixture.universe] = universe
+            }
+        }
+        return data
     }
 
     private func composite(

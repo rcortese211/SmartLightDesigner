@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(AppState.self) private var appState
+    @State private var showSettings = false
 
     var body: some View {
         @Bindable var state = appState
@@ -12,6 +13,7 @@ struct ContentView: View {
                 detailView
                     .background(HueBaseTheme.background)
                     .frame(maxHeight: .infinity)
+                ABCrossfaderBar()
                 TimecodeBarView()
             }
         }
@@ -26,21 +28,30 @@ struct ContentView: View {
                 Text(appState.statusMessage)
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(.secondary)
+                Button(action: { showSettings = true }) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 13))
+                }
+                .help("Patch & Output Settings")
             }
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsSheetView(isPresented: $showSettings)
+                .environment(appState)
         }
     }
 
     @ViewBuilder
     private var detailView: some View {
         switch appState.selectedTab {
-        case .patch:      PatchView()
+        case .visualizer: VisualizerView()
         case .effects:    EffectsView()
         case .cues:       CueListView()
         case .timeline:   TimelineView()
-        case .visualizer: VisualizerView()
+        case .benchmark:  BenchmarkView()
+        case .patch:      PatchView()
         case .output:     OutputSettingsView()
         case .scripting:  ScriptEditorView()
-        case .benchmark:  BenchmarkView()
         }
     }
 }

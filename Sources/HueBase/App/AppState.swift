@@ -6,12 +6,19 @@ import UniformTypeIdentifiers
 @Observable
 final class AppState {
     var show = Show()
-    var selectedTab: AppTab = .patch
+    var selectedTab: AppTab = .visualizer
     var isOutputEnabled = false
     var selectedFixtureIDs: Set<UUID> = []
     var selectedLayerID: UUID?
     var selectedCueID: UUID?
     var statusMessage: String = "Ready"
+
+    var crossfade: Double = 0 {
+        didSet { engine.crossfade = crossfade }
+    }
+    var programBLayers: [Layer] = [] {
+        didSet { engine.programBLayers = programBLayers }
+    }
 
     let engine: DMXEngine
     let outputManager: DMXOutputManager
@@ -205,27 +212,38 @@ final class AppState {
 }
 
 enum AppTab: String, CaseIterable, Identifiable {
-    case patch      = "Patch"
+    // Sidebar-visible tabs
+    case visualizer = "Visualizer"
     case effects    = "Effects"
     case cues       = "Cues"
     case timeline   = "Timeline"
-    case visualizer = "Visualizer"
+    case benchmark  = "Benchmark"
+    // Settings-only (not in sidebar)
+    case patch      = "Patch"
     case output     = "Output"
     case scripting  = "Scripting"
-    case benchmark  = "Benchmark"
 
     var id: String { rawValue }
 
+    var isInSidebar: Bool {
+        switch self {
+        case .patch, .output, .scripting: return false
+        default: return true
+        }
+    }
+
+    static var sidebarCases: [AppTab] { allCases.filter { $0.isInSidebar } }
+
     var systemImage: String {
         switch self {
-        case .patch:      return "cable.connector"
+        case .visualizer: return "eye"
         case .effects:    return "sparkles"
         case .cues:       return "list.number"
         case .timeline:   return "timeline.selection"
-        case .visualizer: return "eye"
+        case .benchmark:  return "gauge.with.needle"
+        case .patch:      return "cable.connector"
         case .output:     return "network"
         case .scripting:  return "terminal"
-        case .benchmark:  return "gauge.with.needle"
         }
     }
 }

@@ -13,9 +13,9 @@ struct EffectsView: View {
     var body: some View {
         HSplitView {
             folderColumn
-                .frame(minWidth: 150, maxWidth: 200)
+                .frame(minWidth: 150, maxWidth: 260)
             paletteColumn
-                .frame(minWidth: 170, maxWidth: 240)
+                .frame(minWidth: 180, maxWidth: 320)
             layerColumn
         }
         .navigationTitle("Effects")
@@ -112,7 +112,8 @@ struct EffectsView: View {
                             Button("Duplicate") { duplicatePalette(palette, in: folder) }
                             Divider()
                             Button("Store Live Stack Here") { storeLiveToPalette(palette, in: folder) }
-                            Button("Recall to Live Stack") { recallPalette(palette) }
+                            Button("Recall to Program A") { recallPalette(palette) }
+                            Button("Recall to Program B") { recallPaletteToBDeck(palette) }
                             Divider()
                             Button("Delete Palette", role: .destructive) { deletePalette(palette, from: folder) }
                         }
@@ -149,9 +150,15 @@ struct EffectsView: View {
 
                 if selectedPaletteID != nil {
                     Button(action: recallSelectedPalette) {
-                        Text("RECALL")
+                        Text("→ A")
                             .font(.system(size: 9, weight: .bold, design: .monospaced))
                             .foregroundStyle(HueBaseTheme.active)
+                    }
+                    .buttonStyle(.plain)
+                    Button(action: recallSelectedPaletteToB) {
+                        Text("→ B")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .foregroundStyle(HueBaseTheme.purple)
                     }
                     .buttonStyle(.plain)
                 }
@@ -168,14 +175,29 @@ struct EffectsView: View {
     private var layerColumn: some View {
         HSplitView {
             paletteLayerStack
-                .frame(minWidth: 200, maxWidth: 280)
+                .frame(minWidth: 200, maxWidth: 360)
             if let binding = selectedLayerBinding {
                 LayerEditorView(layer: binding)
             } else {
-                ContentUnavailableView("Select an Effect Layer", systemImage: "sparkles")
-                    .background(HueBaseTheme.background)
+                emptyEditorState
             }
         }
+    }
+
+    private var emptyEditorState: some View {
+        VStack(spacing: 8) {
+            Spacer()
+            Image(systemName: "sparkles")
+                .font(.system(size: 28))
+                .foregroundStyle(HueBaseTheme.purple.opacity(0.3))
+            Text("SELECT AN EFFECT LAYER")
+                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .foregroundStyle(Color(white: 0.25))
+                .kerning(1)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(HueBaseTheme.background)
     }
 
     private var selectedLayerBinding: Binding<Layer>? {
@@ -214,10 +236,19 @@ struct EffectsView: View {
                     Button(action: recallSelectedPalette) {
                         HStack(spacing: 4) {
                             Image(systemName: "bolt.fill").font(.system(size: 9))
-                            Text("RECALL TO LIVE")
+                            Text("RECALL → A")
                                 .font(.system(size: 9, weight: .bold, design: .monospaced))
                         }
                         .foregroundStyle(HueBaseTheme.active)
+                    }
+                    .buttonStyle(.plain)
+                    Button(action: recallSelectedPaletteToB) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "bolt").font(.system(size: 9))
+                            Text("→ B")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        }
+                        .foregroundStyle(HueBaseTheme.purple)
                     }
                     .buttonStyle(.plain)
                 }
@@ -343,6 +374,21 @@ struct EffectsView: View {
     private func recallSelectedPalette() {
         guard let palette = selectedPalette else { return }
         recallPalette(palette)
+    }
+
+    private func recallSelectedPaletteToB() {
+        guard let palette = selectedPalette else { return }
+        recallPaletteToBDeck(palette)
+    }
+
+    private func recallPaletteToBDeck(_ palette: EffectPalette) {
+        appState.programBLayers = palette.layers.map { src in
+            Layer(id: UUID(), name: src.name, effectId: src.effectId,
+                  isEnabled: src.isEnabled, opacity: src.opacity,
+                  blendMode: src.blendMode, speed: src.speed,
+                  parameters: src.parameters, fixtureIds: src.fixtureIds)
+        }
+        appState.statusMessage = "B: \(palette.name)"
     }
 
     private func storeLiveAsNewPalette() {

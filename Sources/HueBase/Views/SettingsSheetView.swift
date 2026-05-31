@@ -1,0 +1,103 @@
+import SwiftUI
+
+struct SettingsSheetView: View {
+    @Environment(AppState.self) private var appState
+    @Binding var isPresented: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("SETTINGS")
+                    .font(.system(size: 12, weight: .heavy, design: .monospaced))
+                    .foregroundStyle(HueBaseTheme.accentGradient)
+                    .kerning(1.5)
+                Spacer()
+                Button(action: { isPresented = false }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Color(white: 0.35))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(HueBaseTheme.surfaceHigh)
+            .overlay(alignment: .bottom) { GradientBar(height: 1) }
+
+            TabView {
+                PatchView()
+                    .tabItem { Label("Patch", systemImage: "cable.connector") }
+                OutputSettingsView()
+                    .tabItem { Label("Output", systemImage: "network") }
+            }
+            .background(HueBaseTheme.background)
+        }
+        .frame(minWidth: 860, minHeight: 580)
+        .background(HueBaseTheme.background)
+    }
+}
+
+// MARK: - A/B Crossfader Bar
+
+struct ABCrossfaderBar: View {
+    @Environment(AppState.self) private var appState
+
+    var body: some View {
+        @Bindable var state = appState
+        HStack(spacing: 10) {
+            // Snap to A
+            Button("A") { state.crossfade = 0 }
+                .buttonStyle(.plain)
+                .font(.system(size: 11, weight: .heavy, design: .monospaced))
+                .foregroundStyle(appState.crossfade < 0.01
+                    ? HueBaseTheme.active : Color(white: 0.38))
+                .frame(width: 18)
+
+            Text("PROG A")
+                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                .foregroundStyle(appState.crossfade < 0.5
+                    ? HueBaseTheme.active.opacity(0.85) : Color(white: 0.28))
+
+            Slider(value: $state.crossfade, in: 0...1)
+                .tint(crossfaderColor)
+                .frame(maxWidth: 260)
+
+            Text("PROG B")
+                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                .foregroundStyle(appState.crossfade > 0.5
+                    ? HueBaseTheme.purple.opacity(0.9) : Color(white: 0.28))
+
+            // Snap to B
+            Button("B") { state.crossfade = 1 }
+                .buttonStyle(.plain)
+                .font(.system(size: 11, weight: .heavy, design: .monospaced))
+                .foregroundStyle(appState.crossfade > 0.99
+                    ? HueBaseTheme.purple : Color(white: 0.38))
+                .frame(width: 18)
+
+            Divider().frame(height: 14)
+
+            // Crossfade value readout
+            Text(crossfadeLabel)
+                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                .foregroundStyle(Color(white: 0.35))
+                .frame(width: 28, alignment: .trailing)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+        .background(HueBaseTheme.surfaceHigh)
+        .overlay(alignment: .top) { HueBaseTheme.border.frame(height: 1) }
+    }
+
+    private var crossfaderColor: Color {
+        if appState.crossfade < 0.01 { return HueBaseTheme.active }
+        if appState.crossfade > 0.99 { return HueBaseTheme.purple }
+        return HueBaseTheme.blue
+    }
+
+    private var crossfadeLabel: String {
+        if appState.crossfade < 0.01 { return "A" }
+        if appState.crossfade > 0.99 { return "B" }
+        return "\(Int(appState.crossfade * 100))%"
+    }
+}

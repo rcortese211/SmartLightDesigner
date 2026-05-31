@@ -22,7 +22,7 @@ struct SidebarView: View {
             }
 
             // Navigation items
-            List(AppTab.allCases, selection: $state.selectedTab) { tab in
+            List(AppTab.sidebarCases, selection: $state.selectedTab) { tab in
                 HStack(spacing: 8) {
                     Image(systemName: tab.systemImage)
                         .font(.system(size: 12))
