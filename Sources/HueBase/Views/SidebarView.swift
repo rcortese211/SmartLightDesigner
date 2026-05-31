@@ -43,14 +43,16 @@ struct SidebarView: View {
                 }
                 .padding(.vertical, 5)
                 .tag(tab)
-                .listRowBackground(
-                    state.selectedTab == tab
-                        ? HueBaseTheme.purple.opacity(0.12)
+                .listRowBackground(Group {
+                    if state.selectedTab == tab {
+                        HueBaseTheme.purple.opacity(0.12)
                             .overlay(alignment: .leading) {
                                 HueBaseTheme.purple.opacity(0.8).frame(width: 2)
                             }
-                        : Color.clear
-                )
+                    } else {
+                        Color.clear
+                    }
+                })
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)

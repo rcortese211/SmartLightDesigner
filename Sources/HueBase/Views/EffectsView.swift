@@ -155,16 +155,19 @@ struct EffectsView: View {
         HSplitView {
             paletteLayerStack
                 .frame(minWidth: 200, maxWidth: 280)
-            if let layerID = selectedLayerID,
-               let (folderIdx, paletteIdx, layerIdx) = findLayer(layerID) {
-                LayerEditorView(layer: layerBinding(folderIdx: folderIdx,
-                                                    paletteIdx: paletteIdx,
-                                                    layerIdx: layerIdx))
+            if let binding = selectedLayerBinding {
+                LayerEditorView(layer: binding)
             } else {
                 ContentUnavailableView("Select an Effect Layer", systemImage: "sparkles")
                     .background(HueBaseTheme.background)
             }
         }
+    }
+
+    private var selectedLayerBinding: Binding<Layer>? {
+        guard let layerID = selectedLayerID,
+              let (fi, pi, li) = findLayer(layerID) else { return nil }
+        return layerBinding(folderIdx: fi, paletteIdx: pi, layerIdx: li)
     }
 
     private var paletteLayerStack: some View {
@@ -303,8 +306,7 @@ struct EffectsView: View {
 
     private func duplicatePalette(_ palette: EffectPalette, in folder: EffectFolder) {
         guard let fi = appState.show.effectFolders.firstIndex(where: { $0.id == folder.id }) else { return }
-        var copy = palette
-        copy = EffectPalette(id: UUID(), name: palette.name + " Copy", layers: palette.layers)
+        let copy = EffectPalette(id: UUID(), name: palette.name + " Copy", layers: palette.layers)
         appState.show.effectFolders[fi].palettes.append(copy)
     }
 
@@ -334,12 +336,11 @@ struct EffectsView: View {
     }
 
     private func recallPalette(_ palette: EffectPalette) {
-        appState.show.layers = palette.layers.map { layer in
-            var l = layer; l = Layer(id: UUID(), name: l.name, effectId: l.effectId,
-                                     isEnabled: l.isEnabled, opacity: l.opacity,
-                                     blendMode: l.blendMode, speed: l.speed,
-                                     parameters: l.parameters, fixtureIds: l.fixtureIds)
-            return l
+        appState.show.layers = palette.layers.map { src in
+            Layer(id: UUID(), name: src.name, effectId: src.effectId,
+                  isEnabled: src.isEnabled, opacity: src.opacity,
+                  blendMode: src.blendMode, speed: src.speed,
+                  parameters: src.parameters, fixtureIds: src.fixtureIds)
         }
         appState.statusMessage = "Recalled: \(palette.name)"
     }
