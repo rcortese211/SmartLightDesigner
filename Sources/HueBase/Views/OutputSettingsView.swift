@@ -194,12 +194,17 @@ struct OutputSettingsView: View {
                             }
                         }
                         LabeledContent("API Key") {
-                            HStack {
-                                SecureField("Press link button then Pair", text: $state.show.hue.username)
-                                    .textFieldStyle(.roundedBorder)
-                                Button("Pair") { pairHueBridge() }
-                                    .buttonStyle(.bordered)
-                                    .disabled(appState.show.hue.bridgeIP.isEmpty)
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    SecureField("Tap Pair after pressing link button", text: $state.show.hue.username)
+                                        .textFieldStyle(.roundedBorder)
+                                    Button("Pair") { pairHueBridge() }
+                                        .buttonStyle(.bordered)
+                                        .disabled(appState.show.hue.bridgeIP.isEmpty)
+                                }
+                                Text("Press the physical button on the bridge, then click Pair within 30 seconds.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                         LabeledContent("Update Rate") {
@@ -243,19 +248,22 @@ struct OutputSettingsView: View {
 
     private func discoverHueBridges() {
         appState.bridgeDiscovery.onDiscovered = { bridges in
-            if let first = bridges.first {
-                appState.show.hue.bridgeIP = first.ip
-                let names = bridges.map { $0.name }.joined(separator: ", ")
-                appState.statusMessage = bridges.count == 1
+            // Only IPv4 addresses come through; skip any that slipped past the filter
+            let ipv4Bridges = bridges.filter { $0.ip.contains(".") }
+            if let first = ipv4Bridges.first {
+                // Only overwrite if the field is empty or has a non-IPv4 value
+                let current = appState.show.hue.bridgeIP
+                if current.isEmpty || !current.contains(".") {
+                    appState.show.hue.bridgeIP = first.ip
+                }
+                appState.statusMessage = ipv4Bridges.count == 1
                     ? "Found: \(first.ip)"
-                    : "Found \(bridges.count) bridges — using \(first.ip)"
-                _ = names  // suppress unused warning
+                    : "Found \(ipv4Bridges.count) bridges — first: \(first.ip)"
             } else {
                 appState.statusMessage = "No Hue bridges found. Enter IP manually."
             }
         }
         appState.bridgeDiscovery.onError = { msg in
-            // Only surface non-trivial errors; mDNS errors are expected on some networks
             if !msg.contains("mDNS") {
                 appState.statusMessage = "Discovery: \(msg)"
             }

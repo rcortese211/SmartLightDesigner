@@ -112,7 +112,7 @@ final class HueBridgeDiscovery {
     private static func hostString(_ host: NWEndpoint.Host) -> String {
         switch host {
         case .ipv4(let a): return "\(a)"
-        case .ipv6(let a): return "\(a)"
+        case .ipv6:        return ""   // Hue API is IPv4-only; link-local IPv6 won't work in URLs
         case .name(let h, _): return h
         @unknown default: return ""
         }
@@ -159,7 +159,14 @@ final class HueBridgeDiscovery {
 
     func pair(bridgeIP: String, appName: String = "HueBase",
               completion: @escaping (Result<String, Error>) -> Void) {
-        guard let url = URL(string: "http://\(bridgeIP)/api") else { return }
+        guard let url = URL(string: "http://\(bridgeIP)/api") else {
+            DispatchQueue.main.async {
+                completion(.failure(HueError.bridgeError(
+                    "'\(bridgeIP)' is not a valid IPv4 address. Re-enter or use Discover."
+                )))
+            }
+            return
+        }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.httpBody = try? JSONSerialization.data(withJSONObject: ["devicetype": appName])
