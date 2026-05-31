@@ -46,6 +46,15 @@ struct TimelineView: View {
             .frame(maxHeight: .infinity)
         }
         .background(HueBaseTheme.background)
+        .background {
+            Button("") {
+                if appState.timelineEngine.isPlaying { appState.timelineEngine.pause() }
+                else { appState.timelineEngine.play() }
+            }
+            .keyboardShortcut(.space, modifiers: [])
+            .opacity(0)
+            .allowsHitTesting(false)
+        }
         .onDisappear {
             if appState.timelineEngine.isPlaying { appState.timelineEngine.pause() }
         }
