@@ -4,13 +4,25 @@ import SwiftUI
 struct EffectsView: View {
     @Environment(AppState.self) private var appState
 
-    @State private var selectedFolderID: UUID?
-    @State private var selectedPaletteID: UUID?
-    @State private var selectedLayerID: UUID?
     @State private var showAddFolder = false
     @State private var showAddPalette = false
 
+    // Selection state lives in AppState so it survives tab navigation.
+    private var selectedFolderID: UUID? {
+        get { appState.effectsSelectedFolderID }
+        nonmutating set { appState.effectsSelectedFolderID = newValue }
+    }
+    private var selectedPaletteID: UUID? {
+        get { appState.effectsSelectedPaletteID }
+        nonmutating set { appState.effectsSelectedPaletteID = newValue }
+    }
+    private var selectedLayerID: UUID? {
+        get { appState.effectsSelectedLayerID }
+        nonmutating set { appState.effectsSelectedLayerID = newValue }
+    }
+
     var body: some View {
+        @Bindable var appState = appState
         HSplitView {
             folderColumn
                 .frame(minWidth: 150, maxWidth: 260)
@@ -19,6 +31,7 @@ struct EffectsView: View {
             layerColumn
         }
         .navigationTitle("Effects")
+        .onAppear { autoSelectIfNeeded() }
         .toolbar {
             ToolbarItemGroup {
                 Button(action: storeLiveAsNewPalette) {
@@ -45,7 +58,7 @@ struct EffectsView: View {
     private var folderColumn: some View {
         VStack(spacing: 0) {
             PanelHeader(title: "Folders")
-            List(selection: $selectedFolderID) {
+            List(selection: $appState.effectsSelectedFolderID) {
                 ForEach(appState.show.effectFolders) { folder in
                     HStack(spacing: 6) {
                         Image(systemName: "folder.fill")
@@ -96,7 +109,7 @@ struct EffectsView: View {
             PanelHeader(title: selectedFolder?.name ?? "Palettes")
 
             if let folder = selectedFolder {
-                List(selection: $selectedPaletteID) {
+                List(selection: $appState.effectsSelectedPaletteID) {
                     ForEach(folder.palettes) { palette in
                         VStack(alignment: .leading, spacing: 2) {
                             HStack(spacing: 5) {
@@ -228,7 +241,7 @@ struct EffectsView: View {
         VStack(spacing: 0) {
             if let palette = selectedPalette {
                 PanelHeader(title: palette.name)
-                List(selection: $selectedLayerID) {
+                List(selection: $appState.effectsSelectedLayerID) {
                     ForEach(palette.layers) { layer in
                         if let binding = rowLayerBinding(for: layer.id) {
                             LayerRowView(layer: binding)
@@ -342,6 +355,30 @@ struct EffectsView: View {
         )
     }
 
+    // MARK: - Auto-selection
+
+    private func autoSelectIfNeeded() {
+        // Already have a selection — nothing to do
+        if selectedFolderID != nil && selectedPaletteID != nil { return }
+        guard !appState.show.effectFolders.isEmpty else { return }
+
+        // Prefer the folder/palette that's currently live on deck A, then B
+        for activePaletteID in [appState.recalledPaletteIDOnA, appState.recalledPaletteIDOnB].compactMap({ $0 }) {
+            for folder in appState.show.effectFolders {
+                if folder.palettes.contains(where: { $0.id == activePaletteID }) {
+                    selectedFolderID  = folder.id
+                    selectedPaletteID = activePaletteID
+                    return
+                }
+            }
+        }
+
+        // Fall back to first folder + first palette
+        let firstFolder = appState.show.effectFolders[0]
+        selectedFolderID  = firstFolder.id
+        selectedPaletteID = firstFolder.palettes.first?.id
+    }
+
     // MARK: - Mutations
 
     private func deleteFolder(_ folder: EffectFolder) {
@@ -396,7 +433,7 @@ struct EffectsView: View {
             parameters: EffectRegistry.shared.defaultParameters(for: effectId)
         )
         appState.show.effectFolders[fi].palettes[pi].layers.append(layer)
-        selectedLayerID = layer.id
+        appState.effectsSelectedLayerID = layer.id
     }
 
     private func recallPalette(_ palette: EffectPalette) {

@@ -26,6 +26,9 @@ final class AppState {
     }
     var recalledPaletteIDOnA: UUID? = nil
     var recalledPaletteIDOnB: UUID? = nil
+    var effectsSelectedFolderID: UUID? = nil
+    var effectsSelectedPaletteID: UUID? = nil
+    var effectsSelectedLayerID: UUID? = nil
 
     let engine: DMXEngine
     let outputManager: DMXOutputManager
