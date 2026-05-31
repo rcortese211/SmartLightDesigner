@@ -7,6 +7,10 @@ struct VisualizerView: View {
     @State private var showChannelValues: Bool = false
     @State private var displayUniverseIndex: Int = 0
     @State private var layoutMode: LayoutMode = .grid
+    @State private var zoomScale: CGFloat = 1.0
+    @State private var panOffset: CGSize = .zero
+    @GestureState private var liveZoomDelta: CGFloat = 1.0
+    @GestureState private var livePanDelta: CGSize = .zero
 
     enum LayoutMode: String, CaseIterable {
         case freeform = "Freeform"
@@ -34,6 +38,12 @@ struct VisualizerView: View {
                 emptyState
             } else {
                 GeometryReader { geo in
+                    let effectiveZoom = zoomScale * liveZoomDelta
+                    let effectivePan  = CGSize(
+                        width:  panOffset.width  + livePanDelta.width,
+                        height: panOffset.height + livePanDelta.height
+                    )
+
                     ZStack {
                         Canvas { ctx, size in
                             drawGrid(ctx: &ctx, size: size)
@@ -55,7 +65,27 @@ struct VisualizerView: View {
                             }
                         }
                     }
+                    .scaleEffect(effectiveZoom, anchor: .center)
+                    .offset(effectivePan)
+                    .gesture(
+                        MagnificationGesture()
+                            .updating($liveZoomDelta) { val, state, _ in state = val }
+                            .onEnded { val in
+                                zoomScale = max(0.25, min(8.0, zoomScale * val))
+                            }
+                    )
+                    .simultaneousGesture(
+                        DragGesture()
+                            .updating($livePanDelta) { val, state, _ in state = val.translation }
+                            .onEnded { val in
+                                panOffset = CGSize(
+                                    width:  panOffset.width  + val.translation.width,
+                                    height: panOffset.height + val.translation.height
+                                )
+                            }
+                    )
                 }
+                .clipped()
             }
 
             // Status strip
@@ -97,6 +127,10 @@ struct VisualizerView: View {
                 }
                 Toggle("Labels", isOn: $showLabels)
                 Toggle("Values", isOn: $showChannelValues)
+                Button(action: resetZoom) {
+                    Image(systemName: "arrow.up.left.and.arrow.bottom.right")
+                        .help("Reset zoom & pan")
+                }
             }
         }
     }
@@ -108,12 +142,43 @@ struct VisualizerView: View {
                 .foregroundStyle(Color(white: 0.38))
             Slider(value: $fixtureSize, in: 12...80)
                 .tint(HueBaseTheme.purple)
-                .frame(width: 120)
+                .frame(width: 100)
+
+            Divider().frame(height: 14)
+
+            Text("ZOOM")
+                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                .foregroundStyle(Color(white: 0.38))
+            Button(action: { zoomScale = max(0.25, zoomScale / 1.25) }) {
+                Image(systemName: "minus.magnifyingglass")
+                    .font(.system(size: 11))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Color(white: 0.55))
+            Text(String(format: "%.0f%%", zoomScale * 100))
+                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                .foregroundStyle(Color(white: 0.45))
+                .frame(width: 36)
+                .onTapGesture { resetZoom() }
+            Button(action: { zoomScale = min(8.0, zoomScale * 1.25) }) {
+                Image(systemName: "plus.magnifyingglass")
+                    .font(.system(size: 11))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Color(white: 0.55))
+
             Spacer()
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .background(HueBaseTheme.surfaceHigh)
+    }
+
+    private func resetZoom() {
+        withAnimation(.easeOut(duration: 0.2)) {
+            zoomScale = 1.0
+            panOffset = .zero
+        }
     }
 
     private var emptyState: some View {

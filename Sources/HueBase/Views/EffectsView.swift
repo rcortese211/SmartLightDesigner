@@ -212,8 +212,10 @@ struct EffectsView: View {
                 PanelHeader(title: palette.name)
                 List(selection: $selectedLayerID) {
                     ForEach(palette.layers) { layer in
-                        LayerRowView(layer: .constant(layer))
-                            .tag(layer.id)
+                        if let binding = rowLayerBinding(for: layer.id) {
+                            LayerRowView(layer: binding)
+                                .tag(layer.id)
+                        }
                     }
                     .onMove { if let (fi, pi) = findPalette() { movePaletteLayer(fi: fi, pi: pi, from: $0, to: $1) } }
                     .onDelete { if let (fi, pi) = findPalette() { deletePaletteLayer(fi: fi, pi: pi, at: $0) } }
@@ -272,6 +274,11 @@ struct EffectsView: View {
     }
 
     // MARK: - Computed helpers
+
+    private func rowLayerBinding(for layerID: UUID) -> Binding<Layer>? {
+        guard let (fi, pi, li) = findLayer(layerID) else { return nil }
+        return layerBinding(folderIdx: fi, paletteIdx: pi, layerIdx: li)
+    }
 
     private var selectedFolder: EffectFolder? {
         appState.show.effectFolders.first(where: { $0.id == selectedFolderID })

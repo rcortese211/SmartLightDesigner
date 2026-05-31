@@ -5,7 +5,9 @@ import UniformTypeIdentifiers
 
 @Observable
 final class AppState {
-    var show = Show()
+    var show = Show() {
+        didSet { if !_loadingAutosave { scheduleAutosave() } }
+    }
     var selectedTab: AppTab = .visualizer
     var isOutputEnabled = false
     var selectedFixtureIDs: Set<UUID> = []
@@ -29,6 +31,8 @@ final class AppState {
 
     private var artNetTC: ArtNetTimecodeReceiver?
     private var networkTC: NetworkTimecodeSync?
+    private var _autosaveWork: DispatchWorkItem?
+    private var _loadingAutosave = false
 
     init() {
         let om  = DMXOutputManager()
@@ -40,7 +44,8 @@ final class AppState {
         self.scriptEngine    = JSScriptEngine()
         self.timecodeEngine  = tc
         self.bridgeDiscovery = HueBridgeDiscovery()
-        setupDefaultProfiles()
+        loadAutosave()
+        if show.fixtureProfiles.isEmpty { setupDefaultProfiles() }
         setupOSCHandlers()
         setupTimecodeCallbacks()
     }
@@ -50,6 +55,41 @@ final class AppState {
             // Drive the cue timeline when timecode is running
             // Full timeline-to-cue mapping can be wired here
         }
+    }
+
+    // MARK: - Auto-save
+
+    private var autosaveURL: URL? {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
+            .first?
+            .appendingPathComponent("HueBase/autosave.sld")
+    }
+
+    private func scheduleAutosave() {
+        _autosaveWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.autosave() }
+        _autosaveWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: work)
+    }
+
+    private func autosave() {
+        guard let url = autosaveURL else { return }
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                  withIntermediateDirectories: true)
+        if let data = try? JSONEncoder().encode(show) {
+            try? data.write(to: url, options: .atomic)
+        }
+    }
+
+    private func loadAutosave() {
+        guard let url = autosaveURL,
+              FileManager.default.fileExists(atPath: url.path),
+              let data = try? Data(contentsOf: url),
+              let saved = try? JSONDecoder().decode(Show.self, from: data)
+        else { return }
+        _loadingAutosave = true
+        show = saved
+        _loadingAutosave = false
     }
 
     func applyTimecodeConfig() {
@@ -208,6 +248,7 @@ final class AppState {
         selectedLayerID = nil
         selectedCueID = nil
         statusMessage = "New show"
+        autosave()
     }
 }
 
