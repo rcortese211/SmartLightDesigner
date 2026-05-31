@@ -3,6 +3,7 @@ import AppKit
 
 struct FixtureMapView: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.undoManager) private var undoManager
     @State private var selectedFixtureIDs: Set<UUID> = []
     @State private var snapEnabled = false
     @State private var snapDivisions: Double = 8
@@ -24,8 +25,8 @@ struct FixtureMapView: View {
             mapCanvas
             if selectedFixtureIDs.count == 1,
                let id = selectedFixtureIDs.first,
-               let idx = appState.show.fixtures.firstIndex(where: { $0.id == id }) {
-                inspectorPanel(idx: idx)
+               appState.show.fixtures.contains(where: { $0.id == id }) {
+                inspectorPanel(id: id)
                     .frame(minWidth: 220, maxWidth: 260)
             }
         }
@@ -226,47 +227,74 @@ struct FixtureMapView: View {
         }
         .background(Color(red: 0.03, green: 0.02, blue: 0.07))
         .clipped()
+        .focusable()
+        .onKeyPress(.delete) {
+            guard !selectedFixtureIDs.isEmpty else { return .ignored }
+            deleteSelectedFixtures()
+            return .handled
+        }
     }
 
     // MARK: - Inspector
 
+    // Takes UUID so bindings always re-resolve — avoids index-out-of-range if
+    // fixtures are removed while the inspector is open on a different tab.
     @ViewBuilder
-    private func inspectorPanel(idx: Int) -> some View {
-        let fixture = appState.show.fixtures[idx]
-        VStack(spacing: 0) {
-            PanelHeader(title: "FIXTURE")
-            Form {
-                Section("Identity") {
-                    TextField("Name", text: Binding(
-                        get: { appState.show.fixtures[idx].name },
-                        set: { appState.show.fixtures[idx].name = $0 }
-                    ))
-                }
-                Section("Position") {
-                    sliderRow(
-                        label: "X (left→right)",
-                        value: Binding(
-                            get: { appState.show.fixtures[idx].positionX },
-                            set: { appState.show.fixtures[idx].positionX = $0 }
+    private func inspectorPanel(id: UUID) -> some View {
+        if let fixture = appState.show.fixtures.first(where: { $0.id == id }) {
+            VStack(spacing: 0) {
+                PanelHeader(title: "FIXTURE")
+                Form {
+                    Section("Identity") {
+                        TextField("Name", text: Binding(
+                            get: {
+                                appState.show.fixtures.first(where: { $0.id == id })?.name ?? ""
+                            },
+                            set: { v in
+                                if let i = appState.show.fixtures.firstIndex(where: { $0.id == id }) {
+                                    appState.show.fixtures[i].name = v
+                                }
+                            }
+                        ))
+                    }
+                    Section("Position") {
+                        sliderRow(
+                            label: "X (left→right)",
+                            value: Binding(
+                                get: {
+                                    appState.show.fixtures.first(where: { $0.id == id })?.positionX ?? 0
+                                },
+                                set: { v in
+                                    if let i = appState.show.fixtures.firstIndex(where: { $0.id == id }) {
+                                        appState.show.fixtures[i].positionX = v
+                                    }
+                                }
+                            )
                         )
-                    )
-                    sliderRow(
-                        label: "Y (top→bottom)",
-                        value: Binding(
-                            get: { appState.show.fixtures[idx].positionY },
-                            set: { appState.show.fixtures[idx].positionY = $0 }
+                        sliderRow(
+                            label: "Y (top→bottom)",
+                            value: Binding(
+                                get: {
+                                    appState.show.fixtures.first(where: { $0.id == id })?.positionY ?? 0
+                                },
+                                set: { v in
+                                    if let i = appState.show.fixtures.firstIndex(where: { $0.id == id }) {
+                                        appState.show.fixtures[i].positionY = v
+                                    }
+                                }
+                            )
                         )
-                    )
+                    }
+                    Section("DMX") {
+                        LabeledContent("Universe", value: "\(fixture.universe + 1)")
+                        LabeledContent("Address",  value: "\(fixture.startAddress)")
+                        LabeledContent("Profile",  value: appState.show.profile(for: fixture)?.name ?? "–")
+                    }
                 }
-                Section("DMX") {
-                    LabeledContent("Universe", value: "\(fixture.universe + 1)")
-                    LabeledContent("Address",  value: "\(fixture.startAddress)")
-                    LabeledContent("Profile",  value: appState.show.profile(for: fixture)?.name ?? "–")
-                }
+                .formStyle(.grouped)
             }
-            .formStyle(.grouped)
+            .background(HueBaseTheme.surface)
         }
-        .background(HueBaseTheme.surface)
     }
 
     private func sliderRow(label: String, value: Binding<Double>) -> some View {
@@ -336,6 +364,29 @@ struct FixtureMapView: View {
                     ? pad + Double(row) / Double(rows - 1) * spacing : 0.5
             }
         }
+    }
+
+    // MARK: - Delete with undo
+
+    private func deleteSelectedFixtures() {
+        // Capture ordered (index, fixture) pairs before removal
+        let snapshot = appState.show.fixtures.enumerated()
+            .filter { selectedFixtureIDs.contains($0.element.id) }
+            .map { (index: $0.offset, fixture: $0.element) }
+        guard !snapshot.isEmpty else { return }
+
+        appState.show.fixtures.removeAll { selectedFixtureIDs.contains($0.id) }
+        selectedFixtureIDs = []
+
+        let count = snapshot.count
+        undoManager?.registerUndo(withTarget: appState) { state in
+            // Re-insert in reverse order so earlier indices stay valid
+            for item in snapshot.reversed() {
+                let idx = min(item.index, state.show.fixtures.count)
+                state.show.fixtures.insert(item.fixture, at: idx)
+            }
+        }
+        undoManager?.setActionName("Delete \(count) Fixture\(count == 1 ? "" : "s")")
     }
 
     // MARK: - Highlight sync
