@@ -81,7 +81,7 @@ final class ArtNetTimecodeReceiver {
     static func buildPacket(_ tc: SMPTETimecode) -> Data {
         var p = Data(count: 19)
         // ID
-        [0x41,0x72,0x74,0x2D,0x4E,0x65,0x74,0x00].enumerated().forEach { p[$0] = $1 }
+        for (i, byte) in [0x41,0x72,0x74,0x2D,0x4E,0x65,0x74,0x00].enumerated() { p[i] = byte }
         // OpCode 0x9700 little-endian
         p[8] = 0x00; p[9] = 0x97
         // ProtVer 14
