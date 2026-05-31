@@ -3,20 +3,32 @@ import Foundation
 /// DMX output driver that translates RGB fixture channels into Philips Hue
 /// light commands via the local bridge HTTP API (v1).
 ///
-/// Rate-limiting: The Hue bridge accepts ~10-20 PUT requests/sec per light.
-/// We coalesce updates and send at `config.updateRateHz` (default 20 Hz).
+/// Rate-limiting: HTTPS round-trip overhead limits sustainable throughput to
+/// ~10 updates/sec per light. Requests are coalesced, deduplicated against the
+/// last-sent state, and any in-flight task for a light is cancelled before a
+/// new one is issued to prevent out-of-order arrival causing jumpiness.
 final class PhilipsHueOutput: DMXOutputDriver {
     var isEnabled: Bool
     var config: HueConfiguration
 
     private let session: URLSession
-    private var pendingUpdates: [String: LightState] = [:]   // lightId → desired state
+    private var pendingUpdates: [String: LightState] = [:]
+    private var lastSentState:  [String: LightState] = [:]
+    private var inFlightTasks:  [String: URLSessionDataTask] = [:]
     private var sendTimer: Timer?
 
-    struct LightState {
+    struct LightState: Equatable {
         var on: Bool
-        var bri: Int          // 1-254
+        var bri: Int
         var xy: (Double, Double)
+
+        static func == (lhs: LightState, rhs: LightState) -> Bool {
+            guard lhs.on == rhs.on else { return false }
+            guard lhs.on else { return true }   // both off — equal
+            return abs(lhs.bri - rhs.bri) <= 1
+                && abs(lhs.xy.0 - rhs.xy.0) < 0.005
+                && abs(lhs.xy.1 - rhs.xy.1) < 0.005
+        }
     }
 
     init(config: HueConfiguration) {
@@ -37,6 +49,8 @@ final class PhilipsHueOutput: DMXOutputDriver {
         sendTimer?.invalidate()
         sendTimer = nil
         pendingUpdates.removeAll()
+        inFlightTasks.values.forEach { $0.cancel() }
+        inFlightTasks.removeAll()
     }
 
     func send(universe: Int, values: [UInt8]) {
@@ -71,13 +85,21 @@ final class PhilipsHueOutput: DMXOutputDriver {
         let updates = pendingUpdates
         pendingUpdates.removeAll()
 
+        // transitiontime units = 100ms; match the send interval so the bridge
+        // interpolates smoothly from one frame to the next without overshooting
+        let tt = max(0, Int((1.0 / config.updateRateHz) * 10))
+
         for (lightId, state) in updates {
+            // Skip if the bridge is already showing this state
+            if lastSentState[lightId] == state { continue }
+
             var body: [String: Any] = ["on": state.on]
             if state.on {
-                body["bri"] = state.bri
-                body["xy"]  = [state.xy.0, state.xy.1]
-                body["transitiontime"] = 1   // 100ms smooth transition
+                body["bri"]            = state.bri
+                body["xy"]             = [state.xy.0, state.xy.1]
+                body["transitiontime"] = tt
             }
+            lastSentState[lightId] = state
             putLightState(lightId: lightId, body: body)
         }
     }
@@ -90,24 +112,29 @@ final class PhilipsHueOutput: DMXOutputDriver {
         req.httpMethod = "PUT"
         req.httpBody = data
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        session.dataTask(with: req).resume()
+
+        // Cancel any previous in-flight task for this light to prevent out-of-order arrival
+        inFlightTasks[lightId]?.cancel()
+        let task = session.dataTask(with: req) { [weak self] _, _, _ in
+            DispatchQueue.main.async { self?.inFlightTasks.removeValue(forKey: lightId) }
+        }
+        inFlightTasks[lightId] = task
+        task.resume()
     }
 
     // MARK: - sRGB → CIE 1931 xy (Philips wide-gamut matrix)
 
     private func sRGBtoXY(r: Double, g: Double, b: Double) -> (Double, Double) {
-        // Gamma expand
         let rr = r > 0.04045 ? pow((r + 0.055) / 1.055, 2.4) : r / 12.92
         let gg = g > 0.04045 ? pow((g + 0.055) / 1.055, 2.4) : g / 12.92
         let bb = b > 0.04045 ? pow((b + 0.055) / 1.055, 2.4) : b / 12.92
 
-        // Wide-gamut Hue D65 matrix (Philips recommendation)
         let X = rr * 0.664511 + gg * 0.154324 + bb * 0.162028
         let Y = rr * 0.283881 + gg * 0.668433 + bb * 0.047685
         let Z = rr * 0.000088 + gg * 0.072310 + bb * 0.986039
 
         let sum = X + Y + Z
-        guard sum > 0 else { return (0.3127, 0.3290) }  // D65 white point
+        guard sum > 0 else { return (0.3127, 0.3290) }
         return (X / sum, Y / sum)
     }
 }

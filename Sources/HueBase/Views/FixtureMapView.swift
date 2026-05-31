@@ -9,6 +9,8 @@ struct FixtureMapView: View {
     @State private var highlightColor: Color = Color(red: 1.0, green: 0.88, blue: 0.0)
     @State private var lowlightColor: Color = Color(white: 0.14)
     @State private var showHighlightPicker = false
+    @State private var customGridSpacing: Double = 0.55
+    @State private var showCustomGrid = false
 
     var body: some View {
         HSplitView {
@@ -42,14 +44,39 @@ struct FixtureMapView: View {
                 }
                 .help("Arrange all fixtures in a vertical column")
                 Menu {
-                    Button("Spread (Full)") { arrangeFixtures(mode: .grid, spacing: 1.0) }
-                    Button("Wide")          { arrangeFixtures(mode: .grid, spacing: 0.75) }
-                    Button("Normal")        { arrangeFixtures(mode: .grid, spacing: 0.55) }
-                    Button("Compact")       { arrangeFixtures(mode: .grid, spacing: 0.35) }
+                    Button("Spread (Full)") { customGridSpacing = 1.0;  arrangeFixtures(mode: .grid, spacing: 1.0) }
+                    Button("Wide")          { customGridSpacing = 0.75; arrangeFixtures(mode: .grid, spacing: 0.75) }
+                    Button("Normal")        { customGridSpacing = 0.55; arrangeFixtures(mode: .grid, spacing: 0.55) }
+                    Button("Compact")       { customGridSpacing = 0.35; arrangeFixtures(mode: .grid, spacing: 0.35) }
+                    Divider()
+                    Button("Custom…") { showCustomGrid = true }
                 } label: {
                     Label("Grid", systemImage: "grid")
                 }
                 .help("Arrange all fixtures in a grid")
+                .popover(isPresented: $showCustomGrid, arrowEdge: .bottom) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("GRID SPACING")
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .kerning(1)
+                        HStack(spacing: 8) {
+                            Slider(value: $customGridSpacing, in: 0.1...1.0)
+                                .onChange(of: customGridSpacing) { _, v in
+                                    arrangeFixtures(mode: .grid, spacing: v)
+                                }
+                            Text("\(Int(customGridSpacing * 100))%")
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 34, alignment: .trailing)
+                        }
+                        Text("Drag to rearrange live")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(16)
+                    .frame(width: 240)
+                }
                 Divider()
                 Button(action: { highlightEnabled.toggle() }) {
                     Label("Highlight", systemImage: highlightEnabled ? "lightbulb.fill" : "lightbulb")

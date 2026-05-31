@@ -56,7 +56,7 @@ struct HueConfiguration: Codable {
     var bridgeIP: String = ""
     var username: String = ""   // Hue API key (obtained via link-button pairing)
     var lightMappings: [HueLightMapping] = []
-    var updateRateHz: Double = 20   // Hue bridge accepts ~20 updates/sec per light
+    var updateRateHz: Double = 10   // HTTPS round-trip overhead limits sustainable rate to ~10/sec per light
 }
 
 // MARK: - Timecode
