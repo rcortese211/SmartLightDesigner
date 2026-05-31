@@ -9,6 +9,7 @@ enum ParameterType: Equatable {
     case string
     case bool
     case select(options: [String])
+    case colorList   // ordered list of colors; edited via ColorListEditorView
 }
 
 struct EffectParameterDefinition {

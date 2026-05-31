@@ -82,8 +82,11 @@ struct LayerEditorView: View {
             }
         case .color:
             LabeledContent(def.name) {
-                ColorPicker("", selection: colorSwiftUIBinding(binding))
-                    .labelsHidden()
+                ColorParamButton(
+                    name: def.name,
+                    paramValue: binding,
+                    fallbackRGB: def.defaultValue.colorValue ?? (1, 1, 1)
+                )
             }
         case .bool:
             Toggle(def.name, isOn: boolBinding(binding, fallback: def.defaultValue.boolValue ?? false))
@@ -96,6 +99,9 @@ struct LayerEditorView: View {
             Picker(def.name, selection: stringBinding(binding)) {
                 ForEach(options, id: \.self) { opt in Text(opt).tag(opt) }
             }
+        case .colorList:
+            ColorListParamRow(name: def.name, paramValue: binding,
+                              fallback: def.defaultValue.colorListValue ?? [])
         }
     }
 
@@ -124,21 +130,6 @@ struct LayerEditorView: View {
         Binding(
             get: { b.wrappedValue.stringValue ?? "" },
             set: { b.wrappedValue = .string($0) }
-        )
-    }
-
-    private func colorSwiftUIBinding(_ b: Binding<ParameterValue>) -> Binding<Color> {
-        Binding(
-            get: {
-                let (r, g, bv) = b.wrappedValue.colorValue ?? (1, 0, 0)
-                return Color(red: r, green: g, blue: bv)
-            },
-            set: { color in
-                let resolved = color.resolve(in: EnvironmentValues())
-                b.wrappedValue = .color(r: Double(resolved.red),
-                                        g: Double(resolved.green),
-                                        b: Double(resolved.blue))
-            }
         )
     }
 

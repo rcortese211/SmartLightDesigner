@@ -7,6 +7,7 @@ final class EffectRegistry {
 
     private init() {
         register(ColorFillEffect())
+        register(ColorCycleEffect())
         register(ColorMorphEffect())
         register(GradientEffect())
         register(ChaseEffect())

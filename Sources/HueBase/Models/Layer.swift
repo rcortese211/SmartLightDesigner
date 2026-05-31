@@ -40,6 +40,7 @@ enum ParameterValue: Hashable {
     case color(r: Double, g: Double, b: Double)
     case string(String)
     case bool(Bool)
+    case colorList([(r: Double, g: Double, b: Double)])
 
     var doubleValue: Double? {
         if case .double(let v) = self { return v }
@@ -57,21 +58,53 @@ enum ParameterValue: Hashable {
         if case .bool(let v) = self { return v }
         return nil
     }
+    var colorListValue: [(r: Double, g: Double, b: Double)]? {
+        if case .colorList(let v) = self { return v }
+        return nil
+    }
+
+    static func == (lhs: ParameterValue, rhs: ParameterValue) -> Bool {
+        switch (lhs, rhs) {
+        case (.double(let a), .double(let b)):       return a == b
+        case (.color(let ar, let ag, let ab), .color(let br, let bg, let bb)):
+            return ar == br && ag == bg && ab == bb
+        case (.string(let a), .string(let b)):       return a == b
+        case (.bool(let a), .bool(let b)):           return a == b
+        case (.colorList(let a), .colorList(let b)):
+            guard a.count == b.count else { return false }
+            return zip(a, b).allSatisfy { $0.r == $1.r && $0.g == $1.g && $0.b == $1.b }
+        default: return false
+        }
+    }
+
+    func hash(into hasher: inout Hasher) {
+        switch self {
+        case .double(let v):         hasher.combine(0); hasher.combine(v)
+        case .color(let r, let g, let b): hasher.combine(1); hasher.combine(r); hasher.combine(g); hasher.combine(b)
+        case .string(let v):         hasher.combine(2); hasher.combine(v)
+        case .bool(let v):           hasher.combine(3); hasher.combine(v)
+        case .colorList(let v):      hasher.combine(4); v.forEach { hasher.combine($0.r); hasher.combine($0.g); hasher.combine($0.b) }
+        }
+    }
 }
 
 extension ParameterValue: Codable {
-    private enum CodingKeys: String, CodingKey { case type, value, r, g, b }
+    private enum CodingKeys: String, CodingKey { case type, value, r, g, b, colors }
+    private struct RGBEntry: Codable { var r, g, b: Double }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         switch try c.decode(String.self, forKey: .type) {
-        case "double": self = .double(try c.decode(Double.self, forKey: .value))
-        case "color":  self = .color(r: try c.decode(Double.self, forKey: .r),
-                                     g: try c.decode(Double.self, forKey: .g),
-                                     b: try c.decode(Double.self, forKey: .b))
-        case "string": self = .string(try c.decode(String.self, forKey: .value))
-        case "bool":   self = .bool(try c.decode(Bool.self, forKey: .value))
-        default:       self = .double(0)
+        case "double":    self = .double(try c.decode(Double.self, forKey: .value))
+        case "color":     self = .color(r: try c.decode(Double.self, forKey: .r),
+                                        g: try c.decode(Double.self, forKey: .g),
+                                        b: try c.decode(Double.self, forKey: .b))
+        case "string":    self = .string(try c.decode(String.self, forKey: .value))
+        case "bool":      self = .bool(try c.decode(Bool.self, forKey: .value))
+        case "colorList":
+            let entries = try c.decode([RGBEntry].self, forKey: .colors)
+            self = .colorList(entries.map { (r: $0.r, g: $0.g, b: $0.b) })
+        default:          self = .double(0)
         }
     }
 
@@ -87,6 +120,9 @@ extension ParameterValue: Codable {
             try c.encode("string", forKey: .type); try c.encode(v, forKey: .value)
         case .bool(let v):
             try c.encode("bool", forKey: .type); try c.encode(v, forKey: .value)
+        case .colorList(let list):
+            try c.encode("colorList", forKey: .type)
+            try c.encode(list.map { RGBEntry(r: $0.r, g: $0.g, b: $0.b) }, forKey: .colors)
         }
     }
 }
