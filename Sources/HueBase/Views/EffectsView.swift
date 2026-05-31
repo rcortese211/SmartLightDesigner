@@ -9,6 +9,8 @@ struct EffectsView: View {
     @State private var selectedLayerID: UUID?
     @State private var showAddFolder = false
     @State private var showAddPalette = false
+    @State private var recalledPaletteIDOnA: UUID?
+    @State private var recalledPaletteIDOnB: UUID?
 
     var body: some View {
         HSplitView {
@@ -99,8 +101,26 @@ struct EffectsView: View {
                 List(selection: $selectedPaletteID) {
                     ForEach(folder.palettes) { palette in
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(palette.name)
-                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            HStack(spacing: 5) {
+                                Text(palette.name)
+                                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                if palette.id == recalledPaletteIDOnA {
+                                    Text("A")
+                                        .font(.system(size: 7, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(HueBaseTheme.active)
+                                        .padding(.horizontal, 4).padding(.vertical, 1)
+                                        .background(HueBaseTheme.active.opacity(0.18))
+                                        .clipShape(RoundedRectangle(cornerRadius: 3))
+                                }
+                                if palette.id == recalledPaletteIDOnB {
+                                    Text("B")
+                                        .font(.system(size: 7, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(HueBaseTheme.purple)
+                                        .padding(.horizontal, 4).padding(.vertical, 1)
+                                        .background(HueBaseTheme.purple.opacity(0.18))
+                                        .clipShape(RoundedRectangle(cornerRadius: 3))
+                                }
+                            }
                             Text("\(palette.layers.count) layer\(palette.layers.count == 1 ? "" : "s")")
                                 .font(.system(size: 9, design: .monospaced))
                                 .foregroundStyle(Color(white: 0.38))
@@ -307,7 +327,20 @@ struct EffectsView: View {
     private func layerBinding(folderIdx fi: Int, paletteIdx pi: Int, layerIdx li: Int) -> Binding<Layer> {
         Binding(
             get: { appState.show.effectFolders[fi].palettes[pi].layers[li] },
-            set: { appState.show.effectFolders[fi].palettes[pi].layers[li] = $0 }
+            set: { newLayer in
+                appState.show.effectFolders[fi].palettes[pi].layers[li] = newLayer
+                let paletteID = appState.show.effectFolders[fi].palettes[pi].id
+                // Mirror to live deck A if this palette is currently recalled there
+                if paletteID == recalledPaletteIDOnA,
+                   let idx = appState.show.layers.firstIndex(where: { $0.id == newLayer.id }) {
+                    appState.show.layers[idx] = newLayer
+                }
+                // Mirror to live deck B if this palette is currently recalled there
+                if paletteID == recalledPaletteIDOnB,
+                   let idx = appState.programBLayers.firstIndex(where: { $0.id == newLayer.id }) {
+                    appState.programBLayers[idx] = newLayer
+                }
+            }
         )
     }
 
@@ -369,12 +402,8 @@ struct EffectsView: View {
     }
 
     private func recallPalette(_ palette: EffectPalette) {
-        appState.show.layers = palette.layers.map { src in
-            Layer(id: UUID(), name: src.name, effectId: src.effectId,
-                  isEnabled: src.isEnabled, opacity: src.opacity,
-                  blendMode: src.blendMode, speed: src.speed,
-                  parameters: src.parameters, fixtureIds: src.fixtureIds)
-        }
+        appState.show.layers = palette.layers   // keep same IDs so live-edit can mirror by ID
+        recalledPaletteIDOnA = palette.id
         appState.statusMessage = "Recalled: \(palette.name)"
     }
 
@@ -389,12 +418,8 @@ struct EffectsView: View {
     }
 
     private func recallPaletteToBDeck(_ palette: EffectPalette) {
-        appState.programBLayers = palette.layers.map { src in
-            Layer(id: UUID(), name: src.name, effectId: src.effectId,
-                  isEnabled: src.isEnabled, opacity: src.opacity,
-                  blendMode: src.blendMode, speed: src.speed,
-                  parameters: src.parameters, fixtureIds: src.fixtureIds)
-        }
+        appState.programBLayers = palette.layers   // keep same IDs for live-edit mirroring
+        recalledPaletteIDOnB = palette.id
         appState.statusMessage = "B: \(palette.name)"
     }
 
