@@ -128,7 +128,7 @@ extension OSCMessage {
                 tags.append(UInt8(ascii: v ? "T" : "F"))
             case .blob(let d):
                 tags.append(UInt8(ascii: "b"))
-                var size = Int32(d.count)
+                let size = Int32(d.count)
                 withUnsafeBytes(of: size.bigEndian) { argData.append(contentsOf: $0) }
                 argData.append(d)
                 pad(&argData)

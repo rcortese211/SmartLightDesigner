@@ -12,7 +12,7 @@ struct HueBaseApp: App {
                 .hueBaseTheme()
         }
         .windowStyle(.titleBar)
-        .windowToolbarStyle(.unified(showsTitle: true))
+        .windowToolbarStyle(.unified)
         .commands {
             AppCommands(appState: appState)
         }
