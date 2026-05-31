@@ -19,6 +19,14 @@ final class DMXEngine {
     var crossfade: Double = 0
     var programBLayers: [Layer] = []
 
+    // Highlight override — applied after all other rendering; highest priority
+    struct HighlightOverride {
+        var selectedIDs: Set<UUID>
+        var highlightRGB: (r: Double, g: Double, b: Double)
+        var lowlightRGB:  (r: Double, g: Double, b: Double)
+    }
+    var highlightOverride: HighlightOverride? = nil
+
     init(outputManager: DMXOutputManager) {
         self.outputManager = outputManager
         self.cueEngine = CueEngine()
@@ -74,8 +82,12 @@ final class DMXEngine {
             newUniverseData = blended
         }
 
-        universeData = newUniverseData
-        for (universe, values) in newUniverseData {
+        var finalData = newUniverseData
+        if let hl = highlightOverride {
+            applyHighlight(hl, to: &finalData, show: show)
+        }
+        universeData = finalData
+        for (universe, values) in finalData {
             outputManager.send(universe: universe, values: values)
         }
     }
@@ -107,6 +119,32 @@ final class DMXEngine {
         }
         return data
     }
+
+    private func applyHighlight(_ hl: HighlightOverride, to data: inout [Int: [UInt8]], show: Show) {
+        for fixture in show.fixtures {
+            guard let profile = show.profile(for: fixture),
+                  var universe = data[fixture.universe] else { continue }
+            let (r, g, b) = hl.selectedIDs.contains(fixture.id) ? hl.highlightRGB : hl.lowlightRGB
+            let base = fixture.startAddress - 1
+            for ch in profile.channels {
+                let idx = base + ch.offset
+                guard idx >= 0 && idx < 512 else { continue }
+                switch ch.name.lowercased() {
+                case "red",   "r": universe[idx] = UInt8(clamp01(r) * 255)
+                case "green", "g": universe[idx] = UInt8(clamp01(g) * 255)
+                case "blue",  "b": universe[idx] = UInt8(clamp01(b) * 255)
+                case "white", "w": universe[idx] = UInt8(clamp01(min(r, g, b)) * 255)
+                case "amber", "a": universe[idx] = UInt8(clamp01((r + g) / 2 * 0.7) * 255)
+                case "dimmer", "intensity", "master":
+                    universe[idx] = UInt8(clamp01(max(r, g, b)) * 255)
+                default: universe[idx] = 0
+                }
+            }
+            data[fixture.universe] = universe
+        }
+    }
+
+    private func clamp01(_ v: Double) -> Double { max(0, min(1, v)) }
 
     private func composite(
         _ channels: FixtureChannels,
