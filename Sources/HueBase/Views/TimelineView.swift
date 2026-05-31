@@ -29,6 +29,9 @@ struct TimelineView: View {
     // Auto-follow playhead
     @State private var lastAutoScrollX: CGFloat = 0
 
+    // Pinch-to-zoom
+    @State private var zoomAnchor: Double? = nil
+
     // Inline rename
     @State private var renamingClipID: UUID? = nil
     @State private var renameText: String = ""
@@ -312,6 +315,17 @@ struct TimelineView: View {
                 }
             }
         }
+        .gesture(
+            MagnificationGesture()
+                .onChanged { scale in
+                    if zoomAnchor == nil { zoomAnchor = pixelsPerSecond }
+                    pixelsPerSecond = max(20, min(400, zoomAnchor! * Double(scale)))
+                }
+                .onEnded { scale in
+                    pixelsPerSecond = max(20, min(400, (zoomAnchor ?? pixelsPerSecond) * Double(scale)))
+                    zoomAnchor = nil
+                }
+        )
     }
 
     // MARK: - Ruler
