@@ -163,8 +163,7 @@ struct TimelineView: View {
     }
 
     private func trackHeader(track: TimelineTrack, index: Int) -> some View {
-        @Bindable var state = appState
-        return VStack(spacing: 4) {
+        VStack(spacing: 4) {
             HStack(spacing: 4) {
                 // Name (truncated)
                 Text(track.name)
@@ -207,19 +206,6 @@ struct TimelineView: View {
                 .buttonStyle(.plain)
             }
 
-            // Opacity
-            HStack(spacing: 4) {
-                Text("VOL")
-                    .font(.system(size: 7, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Color(white: 0.28))
-                Slider(value: $state.show.timeline.tracks[index].opacity, in: 0...1)
-                    .tint(HueBaseTheme.purple)
-                    .controlSize(.mini)
-                Text("\(Int(track.opacity * 100))")
-                    .font(.system(size: 8, design: .monospaced))
-                    .foregroundStyle(Color(white: 0.38))
-                    .frame(width: 22, alignment: .trailing)
-            }
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
