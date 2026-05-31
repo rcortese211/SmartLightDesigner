@@ -50,9 +50,7 @@ final class NetworkTimecodeSync {
     private func startMaster() {
         let host = NWEndpoint.Host(config.networkSyncBroadcast)
         guard let port = NWEndpoint.Port(rawValue: config.networkSyncPort) else { return }
-        broadcastConnection = NWConnection(host: host,
-                                           endpoint: .hostPort(host: host, port: port),
-                                           using: .udp)
+        broadcastConnection = NWConnection(host: host, port: port, using: .udp)
         broadcastConnection?.start(queue: .global(qos: .utility))
 
         let fps = engine?.frameRate.rawValue ?? 25.0

@@ -40,7 +40,7 @@ final class OSCServer {
         if sendConnection == nil {
             let host = NWEndpoint.Host(toIP)
             let p = NWEndpoint.Port(rawValue: port) ?? 8001
-            sendConnection = NWConnection(host: host, endpoint: .hostPort(host: host, port: p), using: .udp)
+            sendConnection = NWConnection(host: host, port: p, using: .udp)
             sendConnection?.start(queue: .global(qos: .utility))
         }
         let packet = OSCMessage.build(address: address, arguments: arguments)

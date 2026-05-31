@@ -15,7 +15,7 @@ final class ArtNetOutput: DMXOutputDriver {
     func start() {
         let host = NWEndpoint.Host(config.targetIP)
         let port = NWEndpoint.Port(rawValue: config.port) ?? 6454
-        connection = NWConnection(host: host, endpoint: .hostPort(host: host, port: port), using: .udp)
+        connection = NWConnection(host: host, port: port, using: .udp)
         connection?.start(queue: .global(qos: .userInteractive))
     }
 
