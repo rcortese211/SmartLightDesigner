@@ -10,6 +10,8 @@ struct Show: Codable {
     var sACN: SACNConfiguration = SACNConfiguration()
     var usbDMX: USBDMXConfiguration = USBDMXConfiguration()
     var osc: OSCConfiguration = OSCConfiguration()
+    var hue: HueConfiguration = HueConfiguration()
+    var timecode: TimecodeConfiguration = TimecodeConfiguration()
     var savedScripts: [SavedScript] = []
     var notes: String = ""
     var createdAt: Date = Date()

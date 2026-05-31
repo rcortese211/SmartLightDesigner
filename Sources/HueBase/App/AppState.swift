@@ -16,16 +16,52 @@ final class AppState {
     let outputManager: DMXOutputManager
     let oscServer: OSCServer
     let scriptEngine: JSScriptEngine
+    let timecodeEngine: TimecodeEngine
+    let bridgeDiscovery: HueBridgeDiscovery
+
+    private var artNetTC: ArtNetTimecodeReceiver?
+    private var networkTC: NetworkTimecodeSync?
 
     init() {
-        let om = DMXOutputManager()
+        let om  = DMXOutputManager()
         let eng = DMXEngine(outputManager: om)
-        self.engine = eng
-        self.outputManager = om
-        self.oscServer = OSCServer()
-        self.scriptEngine = JSScriptEngine()
+        let tc  = TimecodeEngine()
+        self.engine          = eng
+        self.outputManager   = om
+        self.oscServer       = OSCServer()
+        self.scriptEngine    = JSScriptEngine()
+        self.timecodeEngine  = tc
+        self.bridgeDiscovery = HueBridgeDiscovery()
         setupDefaultProfiles()
         setupOSCHandlers()
+        setupTimecodeCallbacks()
+    }
+
+    private func setupTimecodeCallbacks() {
+        timecodeEngine.onTimecodeUpdate = { [weak self] tc in
+            // Drive the cue timeline when timecode is running
+            // Full timeline-to-cue mapping can be wired here
+            _ = tc
+        }
+    }
+
+    func applyTimecodeConfig() {
+        let cfg = show.timecode
+        artNetTC?.stop()
+        networkTC?.stop()
+
+        if cfg.smpteEnabled && cfg.smpteSource == .artNet {
+            let receiver = ArtNetTimecodeReceiver(engine: timecodeEngine)
+            receiver.port = cfg.artNetTimecodePort
+            receiver.start()
+            artNetTC = receiver
+        }
+
+        if cfg.networkSyncEnabled {
+            let sync = NetworkTimecodeSync(engine: timecodeEngine, config: cfg)
+            sync.start()
+            networkTC = sync
+        }
     }
 
     private func setupDefaultProfiles() {
@@ -72,6 +108,14 @@ final class AppState {
                     FixtureChannel(id: UUID(), name: "Strobe",    offset: 6, defaultValue: 0),
                     FixtureChannel(id: UUID(), name: "ColorWheel",offset: 7, defaultValue: 0)
                 ]
+            ),
+            FixtureProfile(
+                id: UUID(), name: "Philips Hue Color", manufacturer: "Philips",
+                channels: [
+                    FixtureChannel(id: UUID(), name: "Red",   offset: 0, defaultValue: 0),
+                    FixtureChannel(id: UUID(), name: "Green", offset: 1, defaultValue: 0),
+                    FixtureChannel(id: UUID(), name: "Blue",  offset: 2, defaultValue: 0)
+                ]
             )
         ]
     }
@@ -102,10 +146,14 @@ final class AppState {
     func toggleOutput() {
         isOutputEnabled.toggle()
         if isOutputEnabled {
+            rebuildOutputDrivers()
             engine.start(show: show)
+            applyTimecodeConfig()
             statusMessage = "Output enabled"
         } else {
             engine.stop()
+            artNetTC?.stop()
+            networkTC?.stop()
             statusMessage = "Output disabled"
         }
     }
@@ -135,6 +183,15 @@ final class AppState {
         } catch {
             statusMessage = "Open failed: \(error.localizedDescription)"
         }
+    }
+
+    func rebuildOutputDrivers() {
+        while !outputManager.drivers.isEmpty { outputManager.removeDriver(at: 0) }
+        if show.artNet.enabled  { outputManager.addDriver(ArtNetOutput(config: show.artNet)) }
+        if show.sACN.enabled    { outputManager.addDriver(SACNOutput(config: show.sACN)) }
+        if show.usbDMX.enabled  { outputManager.addDriver(USBDMXOutput(config: show.usbDMX)) }
+        if show.hue.enabled     { outputManager.addDriver(PhilipsHueOutput(config: show.hue)) }
+        if isOutputEnabled      { outputManager.startAll() }
     }
 
     func newShow() {

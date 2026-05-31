@@ -40,3 +40,72 @@ struct OSCConfiguration: Codable {
     var sendIP: String = "127.0.0.1"
     var sendPort: UInt16 = 8001
 }
+
+// MARK: - Philips Hue
+
+struct HueLightMapping: Codable, Identifiable, Hashable {
+    let id: UUID
+    var name: String
+    var lightId: String         // Hue bridge light ID (e.g. "1", "2")
+    var universe: Int
+    var startAddress: Int       // 1-based; expects R,G,B channels at offset 0,1,2
+}
+
+struct HueConfiguration: Codable {
+    var enabled: Bool = false
+    var bridgeIP: String = ""
+    var username: String = ""   // Hue API key (obtained via link-button pairing)
+    var lightMappings: [HueLightMapping] = []
+    var updateRateHz: Double = 20   // Hue bridge accepts ~20 updates/sec per light
+}
+
+// MARK: - Timecode
+
+enum TimecodeFrameRate: Double, Codable, CaseIterable, Identifiable {
+    case fps24   = 24
+    case fps25   = 25
+    case fps2997 = 29.97
+    case fps30   = 30
+
+    var id: Double { rawValue }
+    var label: String {
+        switch self {
+        case .fps24:   return "24 fps (Film)"
+        case .fps25:   return "25 fps (EBU/PAL)"
+        case .fps2997: return "29.97 fps (NTSC DF)"
+        case .fps30:   return "30 fps (SMPTE)"
+        }
+    }
+    /// Art-Net type field value
+    var artNetType: UInt8 {
+        switch self {
+        case .fps24:   return 0
+        case .fps25:   return 1
+        case .fps2997: return 2
+        case .fps30:   return 3
+        }
+    }
+}
+
+struct TimecodeConfiguration: Codable {
+    // SMPTE / Art-Net Timecode receive
+    var smpteEnabled: Bool = false
+    var smpteSource: SMPTESource = .artNet
+    var smpteFrameRate: TimecodeFrameRate = .fps25
+    var artNetTimecodePort: UInt16 = 6454
+
+    // Network Timecode Sync (HueBase custom protocol)
+    var networkSyncEnabled: Bool = false
+    var networkSyncMode: NetworkSyncMode = .slave
+    var networkSyncPort: UInt16 = 5765
+    var networkSyncBroadcast: String = "255.255.255.255"
+
+    enum SMPTESource: String, Codable, CaseIterable {
+        case artNet   = "Art-Net Timecode"
+        case manual   = "Manual / Internal"
+    }
+    enum NetworkSyncMode: String, Codable, CaseIterable {
+        case master = "Master (broadcast)"
+        case slave  = "Slave (receive)"
+    }
+}

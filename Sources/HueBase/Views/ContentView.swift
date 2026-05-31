@@ -8,8 +8,12 @@ struct ContentView: View {
         NavigationSplitView {
             SidebarView()
         } detail: {
-            detailView
-                .background(HueBaseTheme.background)
+            VStack(spacing: 0) {
+                detailView
+                    .background(HueBaseTheme.background)
+                    .frame(maxHeight: .infinity)
+                TimecodeBarView()
+            }
         }
         .toolbar {
             ToolbarItem(placement: .navigation) {
