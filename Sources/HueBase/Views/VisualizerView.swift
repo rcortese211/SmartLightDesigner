@@ -5,6 +5,7 @@ struct VisualizerView: View {
     @State private var fixtureSize: Double = 28
     @State private var showLabels: Bool = true
     @State private var showChannelValues: Bool = false
+    @State private var showOverlayEffect: Bool = false
     @State private var displayUniverseIndex: Int = 0
     @State private var layoutMode: LayoutMode = .grid
     @State private var zoomScale: CGFloat = 1.0
@@ -47,6 +48,26 @@ struct VisualizerView: View {
                     ZStack {
                         Canvas { ctx, size in
                             drawGrid(ctx: &ctx, size: size)
+                            if showOverlayEffect {
+                                if layoutMode == .freeform {
+                                    drawOverlay(ctx: &ctx, size: size,
+                                                fixtures: fixtures, universeData: universeData,
+                                                positionFn: { fixturePosition($0, in: size) })
+                                } else {
+                                    let cols = max(1, Int(ceil(sqrt(Double(fixtures.count) * (size.width / max(1, size.height))))))
+                                    let cellW = size.width / CGFloat(cols)
+                                    let cellH = size.height / CGFloat(max(1, Int(ceil(Double(fixtures.count) / Double(cols)))))
+                                    drawOverlay(ctx: &ctx, size: size,
+                                                fixtures: fixtures, universeData: universeData,
+                                                positionFn: { fixture in
+                                                    guard let i = fixtures.firstIndex(where: { $0.id == fixture.id }) else {
+                                                        return .zero
+                                                    }
+                                                    return CGPoint(x: cellW * CGFloat(i % cols) + cellW / 2,
+                                                                   y: cellH * CGFloat(i / cols) + cellH / 2)
+                                                })
+                                }
+                            }
                             if layoutMode == .freeform {
                                 drawFixtures(ctx: &ctx, size: size,
                                              fixtures: fixtures, universeData: universeData)
@@ -127,6 +148,7 @@ struct VisualizerView: View {
                 }
                 Toggle("Labels", isOn: $showLabels)
                 Toggle("Values", isOn: $showChannelValues)
+                Toggle("Overlay", isOn: $showOverlayEffect)
                 Button(action: resetZoom) {
                     Image(systemName: "arrow.up.left.and.arrow.bottom.right")
                         .help("Reset zoom & pan")
@@ -210,6 +232,25 @@ struct VisualizerView: View {
         var y: CGFloat = 0
         while y <= size.height { path.move(to: CGPoint(x: 0, y: y)); path.addLine(to: CGPoint(x: size.width, y: y)); y += step }
         ctx.stroke(path, with: .color(Color(red: 0.12, green: 0.09, blue: 0.22)), lineWidth: 0.5)
+    }
+
+    private func drawOverlay(ctx: inout GraphicsContext, size: CGSize,
+                              fixtures: [Fixture], universeData: [Int: [UInt8]],
+                              positionFn: (Fixture) -> CGPoint) {
+        let spread = CGFloat(fixtureSize) * 5
+        for fixture in fixtures {
+            let color = fixtureColor(fixture, universeData: universeData)
+            let resolved = color.resolve(in: EnvironmentValues())
+            let brightness = Double(max(resolved.red, resolved.green, resolved.blue))
+            guard brightness > 0.01 else { continue }
+            let pos = positionFn(fixture)
+            let radius = spread + CGFloat(brightness) * CGFloat(fixtureSize) * 3
+            let gradient = Gradient(colors: [color.opacity(0.35 * brightness), .clear])
+            let rect = CGRect(x: pos.x - radius, y: pos.y - radius,
+                              width: radius * 2, height: radius * 2)
+            ctx.fill(Path(ellipseIn: rect),
+                     with: .radialGradient(gradient, center: pos, startRadius: 0, endRadius: radius))
+        }
     }
 
     private func drawFixtures(ctx: inout GraphicsContext, size: CGSize,
