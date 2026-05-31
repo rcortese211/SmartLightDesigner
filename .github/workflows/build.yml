@@ -21,7 +21,10 @@ jobs:
         run: swift --version
 
       - name: Build
-        run: swift build 2>&1
+        run: |
+          swift build 2>&1 | tee /tmp/build_output.txt
+          exit ${PIPESTATUS[0]}
 
-      - name: Check for warnings
-        run: swift build 2>&1 | grep -E "warning:|error:" | head -50 || true
+      - name: Show errors and warnings
+        if: always()
+        run: grep -E "warning:|error:" /tmp/build_output.txt | head -100 || true
