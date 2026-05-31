@@ -5,7 +5,7 @@ struct VisualizerView: View {
     @State private var fixtureSize: Double = 28
     @State private var showLabels: Bool = true
     @State private var showChannelValues: Bool = false
-    @State private var showOverlayEffect: Bool = false
+    @State private var showOverlayEffect: Bool = true
     @State private var displayUniverseIndex: Int = 0
     @State private var layoutMode: LayoutMode = .grid
     @State private var zoomScale: CGFloat = 1.0
