@@ -304,7 +304,9 @@ struct BenchmarkView: View {
             }
             tickCount += 1
             let elapsed = Date().timeIntervalSince(tickStart)
-            if elapsed < targetInterval { Thread.sleep(forTimeInterval: targetInterval - elapsed) }
+            if elapsed < targetInterval {
+                try? await Task.sleep(nanoseconds: UInt64((targetInterval - elapsed) * 1_000_000_000))
+            }
         }
         let sustainedFPS = Double(tickCount) / max(0.001, Date().timeIntervalSince(t2))
 

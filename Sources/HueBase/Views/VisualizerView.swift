@@ -15,7 +15,7 @@ struct VisualizerView: View {
                 ZStack {
                     Color.black
                     Canvas { ctx, size in
-                        drawFixtures(ctx: ctx, size: size)
+                        drawFixtures(ctx: &ctx, size: size)
                     }
                     .allowsHitTesting(false)
 
@@ -58,7 +58,7 @@ struct VisualizerView: View {
         .padding(.vertical, 6)
     }
 
-    private func drawFixtures(ctx: GraphicsContext, size: CGSize) {
+    private func drawFixtures(ctx: inout GraphicsContext, size: CGSize) {
         let universeValues = appState.engine.universeData
 
         for fixture in appState.show.fixtures {
@@ -134,7 +134,7 @@ struct VisualizerView: View {
 
     private func fixturePosition(_ fixture: Fixture, in size: CGSize) -> CGPoint {
         let margin = fixtureSize
-        CGPoint(
+        return CGPoint(
             x: margin + fixture.positionX * (size.width - margin * 2),
             y: margin + fixture.positionY * (size.height - margin * 2)
         )
