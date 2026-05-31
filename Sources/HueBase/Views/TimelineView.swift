@@ -26,6 +26,9 @@ struct TimelineView: View {
     @State private var selectedClipID: UUID? = nil
     @State private var dragState: ClipDragState? = nil
 
+    // Auto-follow playhead
+    @State private var lastAutoScrollX: CGFloat = 0
+
     // Inline rename
     @State private var renamingClipID: UUID? = nil
     @State private var renameText: String = ""
@@ -258,28 +261,55 @@ struct TimelineView: View {
     // MARK: - Timeline scroll area
 
     private var timelineScrollArea: some View {
-        ScrollView(.horizontal, showsIndicators: true) {
-            ZStack(alignment: .topLeading) {
-                VStack(spacing: 0) {
-                    timeRuler
-                    Divider().background(HueBaseTheme.border)
+        GeometryReader { geo in
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: true) {
+                    ZStack(alignment: .topLeading) {
+                        VStack(spacing: 0) {
+                            timeRuler
+                            Divider().background(HueBaseTheme.border)
 
-                    ForEach(Array(appState.show.timeline.tracks.enumerated()), id: \.element.id) { idx, track in
-                        trackRow(track: track, index: idx)
-                        Divider().background(HueBaseTheme.border)
+                            ForEach(Array(appState.show.timeline.tracks.enumerated()), id: \.element.id) { idx, track in
+                                trackRow(track: track, index: idx)
+                                Divider().background(HueBaseTheme.border)
+                            }
+
+                            audioRow
+                            Spacer()
+                        }
+                        .frame(width: totalWidth)
+
+                        // Per-second scroll anchors used by auto-follow
+                        let secCount = Int(totalDuration)
+                        ForEach(0...secCount, id: \.self) { sec in
+                            Color.clear
+                                .frame(width: 1, height: 1)
+                                .offset(x: CGFloat(sec) * pixelsPerSecond)
+                                .id("tls-\(sec)")
+                        }
+
+                        playheadOverlay
                     }
-
-                    audioRow
-                    Spacer()
+                    .frame(minWidth: totalWidth)
                 }
-                .frame(width: totalWidth)
-
-                // Playhead
-                playheadOverlay
+                .background(HueBaseTheme.background)
+                .onChange(of: appState.timelineEngine.playheadTime) { _, t in
+                    guard appState.timelineEngine.isPlaying else { return }
+                    let phX = CGFloat(t * pixelsPerSecond)
+                    let w = geo.size.width
+                    guard phX > lastAutoScrollX + w * 0.85 ||
+                          (phX < lastAutoScrollX && t > 0) else { return }
+                    lastAutoScrollX = max(0, phX - w * 0.25)
+                    let sec = Int(lastAutoScrollX / pixelsPerSecond)
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        proxy.scrollTo("tls-\(sec)", anchor: .leading)
+                    }
+                }
+                .onChange(of: appState.timelineEngine.isPlaying) { _, playing in
+                    if !playing { lastAutoScrollX = 0 }
+                }
             }
-            .frame(minWidth: totalWidth)
         }
-        .background(HueBaseTheme.background)
     }
 
     // MARK: - Ruler
@@ -542,20 +572,28 @@ struct TimelineView: View {
                     RoundedRectangle(cornerRadius: 3)
                         .strokeBorder(Color(hue: 0.55, saturation: 0.6, brightness: 0.55), lineWidth: 1)
 
-                    // Waveform placeholder
+                    // Real waveform (RMS per bucket, rendered as vertical bars)
+                    let samples = appState.audioPlayer.waveformSamples
                     Canvas { ctx, size in
                         let midY = size.height / 2
-                        let amplitude: CGFloat = size.height * 0.35
-                        var path = Path()
-                        path.move(to: CGPoint(x: 0, y: midY))
-                        let steps = Int(size.width / 3)
-                        for i in 0...steps {
-                            let x = CGFloat(i) * 3
-                            let y = midY + sin(Double(i) * 0.42) * Double(amplitude) *
-                                (0.5 + 0.5 * sin(Double(i) * 0.13))
-                            path.addLine(to: CGPoint(x: x, y: y))
+                        let waveColor = Color(hue: 0.55, saturation: 0.4, brightness: 0.75)
+                        guard !samples.isEmpty else {
+                            // Loading indicator — simple centre line
+                            ctx.stroke(
+                                Path { p in p.move(to: CGPoint(x: 0, y: midY))
+                                    p.addLine(to: CGPoint(x: size.width, y: midY)) },
+                                with: .color(waveColor.opacity(0.3)), lineWidth: 1)
+                            return
                         }
-                        ctx.stroke(path, with: .color(Color(hue: 0.55, saturation: 0.4, brightness: 0.7).opacity(0.6)), lineWidth: 1)
+                        let n = samples.count
+                        var path = Path()
+                        for i in 0..<n {
+                            let x = CGFloat(i) / CGFloat(n) * size.width
+                            let amp = CGFloat(samples[i]) * size.height * 0.48
+                            path.move(to: CGPoint(x: x, y: midY - amp))
+                            path.addLine(to: CGPoint(x: x, y: midY + amp))
+                        }
+                        ctx.stroke(path, with: .color(waveColor.opacity(0.75)), lineWidth: 1)
                     }
 
                     Text(ac.fileName)

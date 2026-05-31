@@ -7,10 +7,12 @@ final class AudioPlayer {
     private let engine = AVAudioEngine()
     private let playerNode = AVAudioPlayerNode()
     private var audioFile: AVAudioFile?
+    private var fileURL: URL?
 
     private(set) var isLoaded = false
     private(set) var fileDuration: Double = 0
     private(set) var fileName: String = ""
+    private(set) var waveformSamples: [Float] = []   // RMS per bucket, left channel
 
     init() {
         engine.attach(playerNode)
@@ -26,17 +28,54 @@ final class AudioPlayer {
         let fmt = file.processingFormat
         fileDuration = Double(file.length) / fmt.sampleRate
         fileName = url.lastPathComponent
+        fileURL = url
         engine.connect(playerNode, to: engine.mainMixerNode, format: fmt)
         audioFile = file
         isLoaded = true
+        waveformSamples = []
+        extractWaveform(url: url, totalFrames: file.length, format: fmt)
     }
 
     func unload() {
         playerNode.stop()
         audioFile = nil
+        fileURL = nil
         isLoaded = false
         fileDuration = 0
         fileName = ""
+        waveformSamples = []
+    }
+
+    // MARK: - Waveform extraction (background)
+
+    private func extractWaveform(url: URL, totalFrames: AVAudioFramePosition,
+                                  format: AVAudioFormat, targetBuckets: Int = 1024) {
+        let framesPerBucket = max(1, Int(totalFrames) / targetBuckets)
+        DispatchQueue.global(qos: .userInitiated).async {
+            guard let file = try? AVAudioFile(forReading: url),
+                  let buffer = AVAudioPCMBuffer(
+                      pcmFormat: file.processingFormat,
+                      frameCapacity: AVAudioFrameCount(framesPerBucket))
+            else { return }
+
+            var buckets: [Float] = []
+            buckets.reserveCapacity(targetBuckets)
+
+            while file.framePosition < totalFrames {
+                buffer.frameLength = 0
+                guard (try? file.read(into: buffer)) != nil,
+                      buffer.frameLength > 0,
+                      let ch = buffer.floatChannelData else { break }
+                let n = Int(buffer.frameLength)
+                var sum: Float = 0
+                for i in 0..<n { let s = ch[0][i]; sum += s * s }
+                buckets.append(sqrt(sum / Float(n)))
+            }
+
+            DispatchQueue.main.async { [weak self] in
+                self?.waveformSamples = buckets
+            }
+        }
     }
 
     // MARK: - Transport
@@ -91,7 +130,6 @@ final class AudioPlayer {
 
         var results: [(name: String, uid: String)] = []
         for id in ids {
-            // Filter: only devices with output channels
             var outAddr = AudioObjectPropertyAddress(
                 mSelector: kAudioDevicePropertyStreamConfiguration,
                 mScope: kAudioObjectPropertyScopeOutput,
