@@ -63,7 +63,7 @@ struct EffectsView: View {
     private func addLayer() {
         let registry = EffectRegistry.shared
         let effectId = registry.allEffects.first?.id ?? "color_fill"
-        var layer = Layer(
+        let layer = Layer(
             name: "Layer \(appState.show.layers.count + 1)",
             effectId: effectId,
             parameters: registry.defaultParameters(for: effectId)

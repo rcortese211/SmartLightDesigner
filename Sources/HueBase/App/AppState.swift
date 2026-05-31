@@ -1,6 +1,7 @@
 import SwiftUI
 import Observation
 import AppKit
+import UniformTypeIdentifiers
 
 @Observable
 final class AppState {

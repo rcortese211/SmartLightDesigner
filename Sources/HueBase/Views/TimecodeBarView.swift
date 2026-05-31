@@ -23,7 +23,7 @@ struct TimecodeBarView: View {
             Text(tc.current.description)
                 .font(.system(.body, design: .monospaced).bold())
                 .foregroundStyle(tc.isRunning
-                    ? HueBaseTheme.accentGradient
+                    ? AnyShapeStyle(HueBaseTheme.accentGradient)
                     : AnyShapeStyle(Color.secondary))
 
             Text(tc.frameRate.label)

@@ -57,12 +57,12 @@ struct OutputToggleButton: View {
         }
         .tint(appState.isOutputEnabled ? HueBaseTheme.purple : .secondary)
         .buttonStyle(.bordered)
-        .overlay(
-            appState.isOutputEnabled
-                ? RoundedRectangle(cornerRadius: 6)
+        .overlay {
+            if appState.isOutputEnabled {
+                RoundedRectangle(cornerRadius: 6)
                     .stroke(HueBaseTheme.accentGradient, lineWidth: 1)
-                : nil
-        )
+            }
+        }
         .help(appState.isOutputEnabled ? "Disable DMX output" : "Enable DMX output")
     }
 }

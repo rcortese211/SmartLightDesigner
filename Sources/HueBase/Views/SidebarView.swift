@@ -9,7 +9,7 @@ struct SidebarView: View {
             Label(tab.rawValue, systemImage: tab.systemImage)
                 .tag(tab)
                 .foregroundStyle(state.selectedTab == tab
-                    ? HueBaseTheme.accentGradient
+                    ? AnyShapeStyle(HueBaseTheme.accentGradient)
                     : AnyShapeStyle(Color.primary))
         }
         .listStyle(.sidebar)

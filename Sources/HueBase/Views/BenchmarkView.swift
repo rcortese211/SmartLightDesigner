@@ -230,7 +230,7 @@ struct BenchmarkView: View {
         let registry = EffectRegistry.shared
 
         // Build synthetic fixture set
-        var syntheticProfile = FixtureProfile(
+        let syntheticProfile = FixtureProfile(
             id: UUID(), name: "Bench RGB", manufacturer: "Bench",
             channels: [
                 FixtureChannel(id: UUID(), name: "Red",   offset: 0, defaultValue: 0),
@@ -248,11 +248,6 @@ struct BenchmarkView: View {
         // ---- Test 1: Effect render throughput ----
         await progressCallback(0.1, "Testing effect render throughput…")
         let effects = registry.allEffects.compactMap { registry.effect(for: $0.id) }
-        let params  = Dictionary(uniqueKeysWithValues:
-            registry.allEffects.prefix(1).map { e in
-                (e.id, registry.defaultParameters(for: e.id))
-            })
-
         let t0 = Date()
         var renderCount = 0
         while Date().timeIntervalSince(t0) < 1.5 {
