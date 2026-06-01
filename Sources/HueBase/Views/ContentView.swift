@@ -46,6 +46,21 @@ struct ContentView: View {
             }
         }
         .toolbar {
+            ToolbarItem(placement: .navigation) {
+                HStack(spacing: 4) {
+                    Text("OUTPUT:")
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(Color(white: 0.4))
+                        .kerning(1)
+                    Picker("", selection: $state.outputSource) {
+                        ForEach(OutputSource.allCases) { src in
+                            Text(src.rawValue).tag(src)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 105)
+                }
+            }
             ToolbarItem(placement: .principal) {
                 VStack(spacing: 1) {
                     Text(appState.show.name.isEmpty ? "SmartLight Designer" : appState.show.name)
@@ -103,25 +118,21 @@ struct OutputToggleButton: View {
                     .font(.system(size: 12, weight: .bold, design: .monospaced))
             }
             .padding(.horizontal, 10)
-            .padding(.vertical, 5)
+            .padding(.vertical, 4)
+            .background(
+                appState.isOutputEnabled
+                    ? SmartLightTheme.active.opacity(0.12)
+                    : SmartLightTheme.surface
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 5)
+                    .stroke(appState.isOutputEnabled ? SmartLightTheme.active : SmartLightTheme.border,
+                            lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 5))
         }
         .buttonStyle(.plain)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(appState.isOutputEnabled
-                      ? SmartLightTheme.active.opacity(0.12)
-                      : SmartLightTheme.surface)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(
-                            appState.isOutputEnabled ? SmartLightTheme.active : SmartLightTheme.border,
-                            lineWidth: 1
-                        )
-                )
-        )
-        .foregroundStyle(
-            appState.isOutputEnabled ? SmartLightTheme.active : Color.secondary
-        )
+        .foregroundStyle(appState.isOutputEnabled ? SmartLightTheme.active : Color.secondary)
         .help(appState.isOutputEnabled ? "Disable DMX output" : "Enable DMX output")
     }
 }

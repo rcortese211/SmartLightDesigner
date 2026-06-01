@@ -16,6 +16,13 @@ struct FixtureMapView: View {
     // Marquee drag state
     @State private var marqueeStart: CGPoint? = nil
     @State private var marqueeEnd: CGPoint? = nil
+    // Zone draw state
+    @State private var zoneDrawMode = false
+    @State private var zoneDrawStart: CGPoint? = nil
+    @State private var zoneDrawCurrent: CGPoint? = nil
+    @State private var showZoneSavePopover = false
+    @State private var pendingZoneRect: CGRect? = nil
+    @State private var pendingZoneName = ""
     // Live group-drag state
     @State private var activeDragFixtureID: UUID? = nil
     @State private var liveGroupDragOffset: CGSize = .zero
@@ -112,6 +119,45 @@ struct FixtureMapView: View {
                         .frame(width: 240)
                     }
                 }
+                Divider()
+                Button(action: { zoneDrawMode.toggle() }) {
+                    Label("Draw Zone", systemImage: zoneDrawMode ? "rectangle.dashed.badge.record" : "rectangle.dashed")
+                        .foregroundStyle(zoneDrawMode ? SmartLightTheme.active : Color.primary)
+                }
+                .help("Drag to draw a spatial zone on the canvas")
+                .popover(isPresented: $showZoneSavePopover) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("SAVE ZONE")
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .kerning(1)
+                        TextField("Zone name", text: $pendingZoneName)
+                            .textFieldStyle(.roundedBorder).frame(width: 200)
+                        HStack {
+                            Button("Cancel") {
+                                showZoneSavePopover = false
+                                pendingZoneRect = nil
+                                pendingZoneName = ""
+                            }
+                            Spacer()
+                            Button("Save") {
+                                if let r = pendingZoneRect {
+                                    appState.show.zoneLibrary.append(NamedSpatialZone(
+                                        name: pendingZoneName.isEmpty ? "Zone \(appState.show.zoneLibrary.count + 1)" : pendingZoneName,
+                                        zone: SpatialZone(x: r.minX, y: r.minY, width: r.width, height: r.height)
+                                    ))
+                                }
+                                showZoneSavePopover = false
+                                pendingZoneRect = nil
+                                pendingZoneName = ""
+                                zoneDrawMode = false
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(pendingZoneName.isEmpty)
+                        }
+                    }
+                    .padding(16).frame(width: 240)
+                }
             }
         }
         .onChange(of: highlightEnabled)    { _, _ in syncHighlight() }
@@ -131,37 +177,61 @@ struct FixtureMapView: View {
                 }
                 .allowsHitTesting(false)
 
-                // Background — handles tap-to-deselect and marquee drag
+                // Background — handles tap-to-deselect, marquee drag, and zone draw
                 Color.clear
                     .contentShape(Rectangle())
                     .gesture(
                         DragGesture(minimumDistance: 3)
                             .onChanged { val in
-                                marqueeStart = val.startLocation
-                                marqueeEnd   = val.location
+                                if zoneDrawMode {
+                                    zoneDrawStart = val.startLocation
+                                    zoneDrawCurrent = val.location
+                                } else {
+                                    marqueeStart = val.startLocation
+                                    marqueeEnd   = val.location
+                                }
                             }
                             .onEnded { val in
-                                let start = val.startLocation
-                                let end   = val.location
-                                let rect  = CGRect(
-                                    x: min(start.x, end.x), y: min(start.y, end.y),
-                                    width: abs(end.x - start.x), height: abs(end.y - start.y)
-                                )
-                                if rect.width < 4 && rect.height < 4 {
-                                    selectedFixtureIDs = []
-                                } else {
-                                    let hit = Set(appState.show.fixtures.filter { f in
-                                        rect.contains(CGPoint(x: f.positionX * geo.size.width,
-                                                              y: f.positionY * geo.size.height))
-                                    }.map { $0.id })
-                                    if NSEvent.modifierFlags.contains(.shift) {
-                                        selectedFixtureIDs.formUnion(hit)
-                                    } else {
-                                        selectedFixtureIDs = hit
+                                if zoneDrawMode {
+                                    let start = val.startLocation
+                                    let end = val.location
+                                    let rect = CGRect(x: min(start.x, end.x), y: min(start.y, end.y),
+                                                      width: abs(end.x - start.x), height: abs(end.y - start.y))
+                                    if rect.width > 8 && rect.height > 8 {
+                                        let normalized = CGRect(
+                                            x: rect.minX / geo.size.width,
+                                            y: rect.minY / geo.size.height,
+                                            width: rect.width / geo.size.width,
+                                            height: rect.height / geo.size.height
+                                        )
+                                        pendingZoneRect = normalized
+                                        showZoneSavePopover = true
                                     }
+                                    zoneDrawStart = nil
+                                    zoneDrawCurrent = nil
+                                } else {
+                                    let start = val.startLocation
+                                    let end   = val.location
+                                    let rect  = CGRect(
+                                        x: min(start.x, end.x), y: min(start.y, end.y),
+                                        width: abs(end.x - start.x), height: abs(end.y - start.y)
+                                    )
+                                    if rect.width < 4 && rect.height < 4 {
+                                        selectedFixtureIDs = []
+                                    } else {
+                                        let hit = Set(appState.show.fixtures.filter { f in
+                                            rect.contains(CGPoint(x: f.positionX * geo.size.width,
+                                                                  y: f.positionY * geo.size.height))
+                                        }.map { $0.id })
+                                        if NSEvent.modifierFlags.contains(.shift) {
+                                            selectedFixtureIDs.formUnion(hit)
+                                        } else {
+                                            selectedFixtureIDs = hit
+                                        }
+                                    }
+                                    marqueeStart = nil
+                                    marqueeEnd   = nil
                                 }
-                                marqueeStart = nil
-                                marqueeEnd   = nil
                             }
                     )
 
@@ -221,6 +291,18 @@ struct FixtureMapView: View {
                         .background(SmartLightTheme.active.opacity(0.07))
                         .frame(width: rect.width, height: rect.height)
                         .position(x: rect.midX, y: rect.midY)
+                        .allowsHitTesting(false)
+                }
+
+                // Zone draw rectangle
+                if let start = zoneDrawStart, let end = zoneDrawCurrent {
+                    let r = CGRect(x: min(start.x, end.x), y: min(start.y, end.y),
+                                   width: abs(end.x - start.x), height: abs(end.y - start.y))
+                    RoundedRectangle(cornerRadius: 2)
+                        .stroke(SmartLightTheme.active, lineWidth: 1.5)
+                        .background(SmartLightTheme.active.opacity(0.08).clipShape(RoundedRectangle(cornerRadius: 2)))
+                        .frame(width: r.width, height: r.height)
+                        .position(x: r.midX, y: r.midY)
                         .allowsHitTesting(false)
                 }
             }

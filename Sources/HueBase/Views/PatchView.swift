@@ -104,9 +104,33 @@ struct AddFixtureSheet: View {
                 }
             }
             Section("DMX Addressing") {
-                Stepper("Universe: \(universe + 1)", value: $universe, in: 0...255)
-                Stepper("Start Address: \(startAddress)", value: $startAddress, in: 1...512)
-                Stepper("Count: \(count)", value: $count, in: 1...64)
+                LabeledContent("Universe") {
+                    HStack(spacing: 4) {
+                        TextField("", value: Binding(
+                            get: { universe + 1 },
+                            set: { universe = max(0, min(255, $0 - 1)) }
+                        ), formatter: intFormatter)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 60)
+                        Stepper("", value: $universe, in: 0...255).labelsHidden()
+                    }
+                }
+                LabeledContent("Start Address") {
+                    HStack(spacing: 4) {
+                        TextField("", value: $startAddress, formatter: intFormatter)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 60)
+                        Stepper("", value: $startAddress, in: 1...512).labelsHidden()
+                    }
+                }
+                LabeledContent("Count") {
+                    HStack(spacing: 4) {
+                        TextField("", value: $count, formatter: intFormatter)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 60)
+                        Stepper("", value: $count, in: 1...64).labelsHidden()
+                    }
+                }
             }
             HStack {
                 Button("Cancel") { dismiss() }
@@ -119,6 +143,13 @@ struct AddFixtureSheet: View {
         .padding()
         .frame(width: 380)
         .onAppear { selectedProfileId = appState.show.fixtureProfiles.first?.id }
+    }
+
+    private var intFormatter: NumberFormatter {
+        let f = NumberFormatter()
+        f.numberStyle = .none
+        f.allowsFloats = false
+        return f
     }
 
     private func addFixtures() {

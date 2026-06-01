@@ -1,5 +1,14 @@
 import SwiftUI
 
+private func formatTimecode(_ seconds: Double?) -> String {
+    guard let s = seconds else { return "—" }
+    let total = Int(max(0, s))
+    let hh = total / 3600
+    let mm = (total % 3600) / 60
+    let ss = total % 60
+    return String(format: "%02d:%02d:%02d", hh, mm, ss)
+}
+
 struct CueListView: View {
     @Environment(AppState.self) private var appState
     @State private var editingCue: Cue?
@@ -72,6 +81,18 @@ struct CueListView: View {
                 }
             }
             .width(65)
+            TableColumn("Timecode") { cue in
+                Text(formatTimecode(cue.timecodeTime))
+                    .monospacedDigit()
+                    .foregroundStyle(cue.timecodeTime != nil ? .primary : .tertiary)
+            }
+            .width(72)
+            TableColumn("Palette") { cue in
+                Text(cue.paletteRef?.paletteName ?? "—")
+                    .foregroundStyle(cue.paletteRef != nil ? .primary : .tertiary)
+                    .lineLimit(1)
+            }
+            .width(100)
             TableColumn("Notes") { cue in
                 Text(cue.notes).foregroundStyle(.tertiary).lineLimit(1)
             }
@@ -109,6 +130,8 @@ struct CueListView: View {
 
 struct CueEditorView: View {
     @Binding var cue: Cue
+    @Environment(AppState.self) private var appState
+    @State private var showPaletteAssign = false
 
     var body: some View {
         Form {
@@ -152,6 +175,50 @@ struct CueEditorView: View {
                     }
                 }
             }
+            Section("Timecode Trigger") {
+                Toggle("Enable timecode trigger", isOn: Binding(
+                    get: { cue.timecodeTime != nil },
+                    set: { cue.timecodeTime = $0 ? 0.0 : nil }
+                ))
+                if cue.timecodeTime != nil {
+                    LabeledContent("Time (HH:MM:SS)") {
+                        TextField("00:00:00", value: Binding(
+                            get: { cue.timecodeTime ?? 0 },
+                            set: { cue.timecodeTime = $0 }
+                        ), formatter: timecodeFormatter)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 90)
+                    }
+                }
+            }
+            Section("Palette") {
+                if let ref = cue.paletteRef {
+                    HStack {
+                        Text(ref.paletteName)
+                            .font(.system(size: 11, design: .monospaced))
+                        Text("in \(ref.folderName)")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Remove") { cue.paletteRef = nil }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                    }
+                } else {
+                    HStack {
+                        Text("None").foregroundStyle(.tertiary)
+                        Spacer()
+                        Button("Assign…") { showPaletteAssign = true }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                    }
+                }
+            }
+            .sheet(isPresented: $showPaletteAssign) {
+                PaletteAssignSheet(isPresented: $showPaletteAssign) { ref in
+                    cue.paletteRef = ref
+                }
+            }
             Section("Notes") {
                 TextEditor(text: $cue.notes)
                     .frame(height: 80)
@@ -165,5 +232,61 @@ struct CueEditorView: View {
         f.minimumFractionDigits = 0
         f.maximumFractionDigits = 1
         return f
+    }
+
+    private var timecodeFormatter: NumberFormatter {
+        let f = NumberFormatter()
+        f.numberStyle = .none
+        f.minimum = 0
+        return f
+    }
+}
+
+// Sheet that lists all folders/palettes for assignment
+private struct PaletteAssignSheet: View {
+    @Binding var isPresented: Bool
+    @Environment(AppState.self) private var appState
+    let onAssign: (CuePaletteRef) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            PanelHeader(title: "Assign Palette")
+            List {
+                ForEach(appState.show.effectFolders) { folder in
+                    Section(folder.name) {
+                        ForEach(folder.palettes) { palette in
+                            Button(action: {
+                                onAssign(CuePaletteRef(
+                                    folderID: folder.id,
+                                    folderName: folder.name,
+                                    paletteID: palette.id,
+                                    paletteName: palette.name
+                                ))
+                                isPresented = false
+                            }) {
+                                HStack {
+                                    Text(palette.name)
+                                        .font(.system(size: 11, design: .monospaced))
+                                    Spacer()
+                                    Text("\(palette.layers.count) layers")
+                                        .font(.system(size: 9, design: .monospaced))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            .listStyle(.plain)
+            Divider()
+            HStack {
+                Button("Cancel") { isPresented = false }
+                    .buttonStyle(.bordered)
+                Spacer()
+            }
+            .padding(12)
+        }
+        .frame(width: 300, height: 400)
     }
 }

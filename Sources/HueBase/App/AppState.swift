@@ -41,6 +41,7 @@ final class AppState {
     var effectsSelectedFolderID: UUID? = nil
     var effectsSelectedPaletteID: UUID? = nil
     var effectsSelectedLayerID: UUID? = nil
+    var outputSource: OutputSource = .effects
 
     // Current open file URL — set on save/open, cleared on new show
     var currentShowURL: URL?
@@ -350,6 +351,13 @@ final class AppState {
         statusMessage = "New show"
         autosave()
     }
+}
+
+enum OutputSource: String, CaseIterable, Identifiable {
+    case effects  = "Effects"
+    case cues     = "Cues"
+    case timeline = "Timeline"
+    var id: String { rawValue }
 }
 
 enum AppTab: String, CaseIterable, Identifiable {

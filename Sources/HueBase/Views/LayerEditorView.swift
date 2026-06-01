@@ -6,6 +6,7 @@ struct LayerEditorView: View {
 
     @State private var showZoneSave = false
     @State private var zoneSaveName = ""
+    @State private var editingZoneID: UUID? = nil
 
     private var effectDefs: [EffectParameterDefinition] {
         EffectRegistry.shared.effect(for: layer.effectId)?.parameterDefinitions ?? []
@@ -137,28 +138,32 @@ struct LayerEditorView: View {
             if !appState.show.zoneLibrary.isEmpty {
                 Section("Zone Library") {
                     ForEach(appState.show.zoneLibrary) { named in
-                        HStack(spacing: 8) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(named.name)
-                                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                                Text("\(Int(named.zone.width * 100))%×\(Int(named.zone.height * 100))% @ (\(String(format: "%.2f", named.zone.x)), \(String(format: "%.2f", named.zone.y)))")
-                                    .font(.system(size: 9, design: .monospaced))
-                                    .foregroundStyle(.secondary)
+                        HStack(spacing: 6) {
+                            if editingZoneID == named.id {
+                                TextField("Name", text: bindingForZoneName(named.id))
+                                    .textFieldStyle(.roundedBorder)
+                                    .onSubmit { editingZoneID = nil }
+                            } else {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(named.name)
+                                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                    Text("\(Int(named.zone.width * 100))%×\(Int(named.zone.height * 100))% @ (\(String(format: "%.2f", named.zone.x)), \(String(format: "%.2f", named.zone.y)))")
+                                        .font(.system(size: 9, design: .monospaced))
+                                        .foregroundStyle(.secondary)
+                                }
+                                .onTapGesture(count: 2) { editingZoneID = named.id }
                             }
                             Spacer()
                             Button("Apply") { layer.zone = named.zone }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                        }
-                        .contextMenu {
-                            Button("Apply to Layer") { layer.zone = named.zone }
-                            Divider()
-                            Button("Delete", role: .destructive) {
+                                .buttonStyle(.bordered).controlSize(.small)
+                            Button(role: .destructive) {
                                 appState.show.zoneLibrary.removeAll { $0.id == named.id }
-                            }
+                                if editingZoneID == named.id { editingZoneID = nil }
+                            } label: { Image(systemName: "trash") }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(Color.red.opacity(0.75))
                         }
                     }
-                    .onDelete { appState.show.zoneLibrary.remove(atOffsets: $0) }
                 }
             }
         }
@@ -228,6 +233,17 @@ struct LayerEditorView: View {
         Binding(
             get: { b.wrappedValue.stringValue ?? "" },
             set: { b.wrappedValue = .string($0) }
+        )
+    }
+
+    private func bindingForZoneName(_ id: UUID) -> Binding<String> {
+        Binding(
+            get: { appState.show.zoneLibrary.first(where: { $0.id == id })?.name ?? "" },
+            set: { v in
+                if let i = appState.show.zoneLibrary.firstIndex(where: { $0.id == id }) {
+                    appState.show.zoneLibrary[i].name = v
+                }
+            }
         )
     }
 

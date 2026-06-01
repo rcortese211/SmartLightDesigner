@@ -12,6 +12,7 @@ struct VisualizerView: View {
     @State private var panOffset: CGSize = .zero
     @GestureState private var liveZoomDelta: CGFloat = 1.0
     @GestureState private var livePanDelta: CGSize = .zero
+    @State private var previewMode = false
 
     enum LayoutMode: String, CaseIterable {
         case freeform = "Map"
@@ -172,6 +173,15 @@ struct VisualizerView: View {
             .buttonStyle(.plain)
             .foregroundStyle(Color(white: 0.55))
 
+            Divider().frame(height: 14)
+            Picker("", selection: $previewMode) {
+                Text("Output").tag(false)
+                Text("Preview").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 130)
+            .help("Output: shows actual DMX values (requires output ON). Preview: simulates effects regardless of output state.")
+
             Spacer()
         }
         .padding(.horizontal, 10)
@@ -232,9 +242,23 @@ struct VisualizerView: View {
     private static let overlayFixtureID = UUID()
 
     private func drawOverlay(ctx: inout GraphicsContext, size: CGSize) {
-        let fade   = appState.crossfade
-        let aLayers = (fade < 0.999) ? appState.show.layers.filter { $0.isEnabled } : []
-        let bLayers = (fade > 0.001) ? appState.programBLayers.filter { $0.isEnabled } : []
+        let fade: Double
+        let aLayers: [Layer]
+        let bLayers: [Layer]
+
+        switch appState.outputSource {
+        case .timeline:
+            return
+        case .cues:
+            fade = 0
+            aLayers = appState.engine.cueEngine.currentCue?.layerSnapshot.filter { $0.isEnabled } ?? []
+            bLayers = []
+        case .effects:
+            fade   = appState.crossfade
+            aLayers = (fade < 0.999) ? appState.show.layers.filter { $0.isEnabled } : []
+            bLayers = (fade > 0.001) ? appState.programBLayers.filter { $0.isEnabled } : []
+        }
+
         guard !aLayers.isEmpty || !bLayers.isEmpty else { return }
 
         let registry = EffectRegistry.shared
@@ -298,9 +322,13 @@ struct VisualizerView: View {
 
     private func drawFixtures(ctx: inout GraphicsContext, size: CGSize,
                                fixtures: [Fixture], universeData: [Int: [UInt8]]) {
+        let previewColors: [UUID: Color] = previewMode
+            ? Dictionary(uniqueKeysWithValues: fixtures.map { ($0.id, previewColor(for: $0)) })
+            : [:]
         for fixture in fixtures {
             let pos = fixturePosition(fixture, in: size)
-            drawFixtureAt(ctx: &ctx, pos: pos, fixture: fixture, universeData: universeData)
+            drawFixtureAt(ctx: &ctx, pos: pos, fixture: fixture, universeData: universeData,
+                          colorOverride: previewColors[fixture.id])
         }
     }
 
@@ -314,13 +342,18 @@ struct VisualizerView: View {
         let cellH = size.height / CGFloat(rows)
         let radius = min(cellW, cellH) * 0.3
 
+        let previewColors: [UUID: Color] = previewMode
+            ? Dictionary(uniqueKeysWithValues: fixtures.map { ($0.id, previewColor(for: $0)) })
+            : [:]
+
         for (i, fixture) in fixtures.enumerated() {
             let col = i % cols
             let row = i / cols
             let pos = CGPoint(x: cellW * CGFloat(col) + cellW / 2,
                               y: cellH * CGFloat(row) + cellH / 2)
             drawFixtureAt(ctx: &ctx, pos: pos, fixture: fixture,
-                          universeData: universeData, overrideRadius: radius)
+                          universeData: universeData, overrideRadius: radius,
+                          colorOverride: previewColors[fixture.id])
             if showLabels {
                 ctx.draw(
                     Text(fixture.name)
@@ -336,9 +369,10 @@ struct VisualizerView: View {
                                 pos: CGPoint,
                                 fixture: Fixture,
                                 universeData: [Int: [UInt8]],
-                                overrideRadius: CGFloat? = nil) {
+                                overrideRadius: CGFloat? = nil,
+                                colorOverride: Color? = nil) {
         let radius: CGFloat = overrideRadius ?? CGFloat(fixtureSize) / 2
-        let color = fixtureColor(fixture, universeData: universeData)
+        let color = colorOverride ?? fixtureColor(fixture, universeData: universeData)
         let rect = CGRect(x: pos.x - radius, y: pos.y - radius,
                           width: radius * 2, height: radius * 2)
 
@@ -373,6 +407,36 @@ struct VisualizerView: View {
                 at: CGPoint(x: pos.x, y: pos.y + radius + 10)
             )
         }
+    }
+
+    private func previewColor(for fixture: Fixture) -> Color {
+        guard let profile = appState.show.profile(for: fixture) else {
+            return Color(red: 0.07, green: 0.05, blue: 0.12)
+        }
+        let registry = EffectRegistry.shared
+        let time = Date().timeIntervalSinceReferenceDate
+        let layers: [Layer]
+        switch appState.outputSource {
+        case .effects:
+            layers = appState.show.layers.filter { $0.isEnabled }
+        case .cues:
+            layers = appState.engine.cueEngine.currentCue?.layerSnapshot.filter { $0.isEnabled } ?? []
+        case .timeline:
+            layers = appState.show.layers.filter { $0.isEnabled }
+        }
+        var r: Double = 0, g: Double = 0, b: Double = 0
+        for layer in layers {
+            guard let effect = registry.effect(for: layer.effectId) else { continue }
+            var params = layer.parameters
+            if let ov = appState.engine.parameterOverrides[layer.id] { params.merge(ov) { _, n in n } }
+            let ch = effect.render(fixture: fixture, profile: profile,
+                                   parameters: params, time: time, speed: layer.speed)
+            let a = layer.opacity
+            r += (Double(ch[0] ?? 0) / 255.0 - r) * a
+            g += (Double(ch[1] ?? 0) / 255.0 - g) * a
+            b += (Double(ch[2] ?? 0) / 255.0 - b) * a
+        }
+        return Color(red: r, green: g, blue: b)
     }
 
     private func fixtureColor(_ fixture: Fixture, universeData: [Int: [UInt8]]) -> Color {

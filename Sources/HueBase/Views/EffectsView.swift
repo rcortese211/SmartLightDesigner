@@ -33,19 +33,7 @@ struct EffectsView: View {
         .navigationTitle("Effects")
         .onAppear { autoSelectIfNeeded() }
         .toolbar {
-            ToolbarItemGroup {
-                Button(action: storeLiveAsNewPalette) {
-                    Label("Store Live Stack", systemImage: "tray.and.arrow.down")
-                }
-                .disabled(selectedFolderID == nil)
-                .help("Store the current live layer stack as a new palette in the selected folder")
-
-                Button(action: recallSelectedPalette) {
-                    Label("Recall Palette", systemImage: "bolt.fill")
-                }
-                .disabled(selectedPaletteID == nil)
-                .help("Load this palette's layers into the live engine stack")
-            }
+            ToolbarItemGroup { }
         }
         .sheet(isPresented: $showAddFolder) { AddFolderSheet(isPresented: $showAddFolder) }
         .sheet(isPresented: $showAddPalette) {
@@ -286,23 +274,25 @@ struct EffectsView: View {
                     Spacer()
 
                     Button(action: recallSelectedPalette) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "bolt.fill").font(.system(size: 11))
-                            Text("RECALL → A")
-                                .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        }
-                        .foregroundStyle(SmartLightTheme.active)
+                        Text("RECALL → A")
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .foregroundStyle(SmartLightTheme.active)
                     }
                     .buttonStyle(.plain)
                     Button(action: recallSelectedPaletteToB) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "bolt").font(.system(size: 11))
-                            Text("→ B")
-                                .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        }
-                        .foregroundStyle(SmartLightTheme.purple)
+                        Text("→ B")
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .foregroundStyle(SmartLightTheme.purple)
                     }
                     .buttonStyle(.plain)
+                    Divider().frame(height: 14)
+                    Button(action: storeLiveAsNewPalette) {
+                        Text("STORE")
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .foregroundStyle(SmartLightTheme.purple.opacity(0.8))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(selectedFolderID == nil)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
