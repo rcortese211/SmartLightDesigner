@@ -42,6 +42,26 @@ final class AppState {
     var effectsSelectedPaletteID: UUID? = nil
     var effectsSelectedLayerID: UUID? = nil
 
+    // Current open file URL — set on save/open, cleared on new show
+    var currentShowURL: URL?
+
+    // Autosave-to-file settings — persisted in UserDefaults
+    var autosaveEnabled: Bool = UserDefaults.standard.object(forKey: "autosaveEnabled") as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(autosaveEnabled, forKey: "autosaveEnabled")
+            autosaveEnabled ? startPeriodicAutosaveTimer() : stopPeriodicAutosaveTimer()
+        }
+    }
+    var autosaveIntervalSeconds: Int = {
+        let v = UserDefaults.standard.integer(forKey: "autosaveIntervalSeconds")
+        return v > 0 ? v : 300
+    }() {
+        didSet {
+            UserDefaults.standard.set(autosaveIntervalSeconds, forKey: "autosaveIntervalSeconds")
+            if autosaveEnabled { startPeriodicAutosaveTimer() }
+        }
+    }
+
     let engine: DMXEngine
     let outputManager: DMXOutputManager
     let oscServer: OSCServer
@@ -55,6 +75,7 @@ final class AppState {
     private var networkTC: NetworkTimecodeSync?
     private var _autosaveWork: DispatchWorkItem?
     private var _loadingAutosave = false
+    @ObservationIgnored private var periodicAutosaveTimer: Timer?
 
     init() {
         let om  = DMXOutputManager()
@@ -76,7 +97,10 @@ final class AppState {
         if show.effectFolders.isEmpty   { seedDefaultEffectFolders() }
         setupOSCHandlers()
         setupTimecodeCallbacks()
+        if autosaveEnabled { startPeriodicAutosaveTimer() }
     }
+
+    deinit { periodicAutosaveTimer?.invalidate() }
 
     private func setupTimecodeCallbacks() {
         timecodeEngine.onTimecodeUpdate = { _ in
@@ -107,6 +131,28 @@ final class AppState {
         if let data = try? JSONEncoder().encode(show) {
             try? data.write(to: url, options: .atomic)
         }
+    }
+
+    // MARK: - Periodic autosave to show file
+
+    private func startPeriodicAutosaveTimer() {
+        periodicAutosaveTimer?.invalidate()
+        periodicAutosaveTimer = Timer.scheduledTimer(
+            withTimeInterval: TimeInterval(autosaveIntervalSeconds),
+            repeats: true
+        ) { [weak self] _ in self?.saveToCurrentFileIfOpen() }
+    }
+
+    private func stopPeriodicAutosaveTimer() {
+        periodicAutosaveTimer?.invalidate()
+        periodicAutosaveTimer = nil
+    }
+
+    private func saveToCurrentFileIfOpen() {
+        guard let url = currentShowURL,
+              let data = try? JSONEncoder().encode(show) else { return }
+        try? data.write(to: url, options: .atomic)
+        DispatchQueue.main.async { self.statusMessage = "Autosaved" }
     }
 
     private func loadAutosave() {
@@ -241,6 +287,7 @@ final class AppState {
         do {
             let data = try JSONEncoder().encode(show)
             try data.write(to: url)
+            currentShowURL = url
             recordRecentFile(url)
             show.name = url.deletingPathExtension().lastPathComponent
             statusMessage = "Saved: \(url.lastPathComponent)"
@@ -265,6 +312,7 @@ final class AppState {
             let data = try Data(contentsOf: url)
             show = try JSONDecoder().decode(Show.self, from: data)
             if show.effectFolders.isEmpty { seedDefaultEffectFolders() }
+            currentShowURL = url
             recordRecentFile(url)
             statusMessage = "Opened: \(url.lastPathComponent)"
             return true
@@ -293,6 +341,7 @@ final class AppState {
 
     func newShow() {
         show = Show()
+        currentShowURL = nil
         setupDefaultProfiles()
         seedDefaultEffectFolders()
         selectedFixtureIDs = []

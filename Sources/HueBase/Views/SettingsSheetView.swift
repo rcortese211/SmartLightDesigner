@@ -27,6 +27,8 @@ struct SettingsSheetView: View {
             .overlay(alignment: .bottom) { GradientBar(height: 1) }
 
             TabView {
+                GeneralSettingsView()
+                    .tabItem { Label("General", systemImage: "gear") }
                 PatchView()
                     .tabItem { Label("Patch", systemImage: "cable.connector") }
                 FixtureMapView()
@@ -62,6 +64,87 @@ struct SettingsSheetView: View {
         }
         .frame(minWidth: 860, minHeight: 580)
         .background(SmartLightTheme.background)
+    }
+}
+
+// MARK: - General Settings
+
+struct GeneralSettingsView: View {
+    @Environment(AppState.self) private var appState
+
+    private let intervalOptions: [(label: String, seconds: Int)] = [
+        ("30 seconds", 30),
+        ("1 minute",   60),
+        ("2 minutes",  120),
+        ("5 minutes",  300),
+        ("10 minutes", 600),
+        ("15 minutes", 900),
+    ]
+
+    var body: some View {
+        @Bindable var state = appState
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                sectionHeader("Autosave")
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Toggle("Automatically save to show file", isOn: $state.autosaveEnabled)
+
+                    if appState.autosaveEnabled {
+                        HStack {
+                            Text("Interval")
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundStyle(Color(white: 0.65))
+                            Spacer()
+                            Picker("", selection: $state.autosaveIntervalSeconds) {
+                                ForEach(intervalOptions, id: \.seconds) { opt in
+                                    Text(opt.label).tag(opt.seconds)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .frame(width: 140)
+                        }
+                    }
+
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(appState.currentShowURL != nil
+                                  ? SmartLightTheme.active : Color(white: 0.3))
+                            .frame(width: 6, height: 6)
+                        if let url = appState.currentShowURL {
+                            Text(url.path)
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundStyle(Color(white: 0.5))
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        } else {
+                            Text("No file open — save or open a show to enable autosave")
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundStyle(Color(white: 0.4))
+                        }
+                    }
+                    .padding(.top, 2)
+                }
+                .padding(16)
+                .background(SmartLightTheme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(RoundedRectangle(cornerRadius: 6)
+                    .stroke(SmartLightTheme.border, lineWidth: 1))
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
+            }
+            .padding(.top, 20)
+        }
+        .background(SmartLightTheme.background)
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+            .foregroundStyle(Color(white: 0.45))
+            .kerning(1.2)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 8)
     }
 }
 

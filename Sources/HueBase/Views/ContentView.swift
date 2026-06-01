@@ -46,10 +46,19 @@ struct ContentView: View {
             }
         }
         .toolbar {
-            ToolbarItem(placement: .navigation) {
-                Text(appState.show.name.isEmpty ? "SmartLight Designer" : appState.show.name)
-                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(SmartLightTheme.accentGradient)
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 1) {
+                    Text(appState.show.name.isEmpty ? "SmartLight Designer" : appState.show.name)
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(SmartLightTheme.accentGradient)
+                    if appState.currentShowURL != nil {
+                        Text(appState.autosaveEnabled ? "autosave on" : "unsaved")
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(appState.autosaveEnabled
+                                ? SmartLightTheme.active.opacity(0.7)
+                                : Color(white: 0.35))
+                    }
+                }
             }
             ToolbarItemGroup(placement: .primaryAction) {
                 OutputToggleButton()
