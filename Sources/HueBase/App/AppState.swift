@@ -18,6 +18,18 @@ final class AppState {
     var selectedCueID: UUID?
     var statusMessage: String = "Ready"
 
+    // Recent files — persisted in UserDefaults, stale paths filtered out
+    var recentFiles: [URL] {
+        (UserDefaults.standard.stringArray(forKey: "recentShowFiles") ?? [])
+            .compactMap { URL(string: $0) }
+            .filter { FileManager.default.fileExists(atPath: $0.path) }
+    }
+
+    // True when the autosaved show has real content worth continuing
+    var hasContinuableShow: Bool {
+        !show.name.isEmpty || !show.fixtures.isEmpty || !show.layers.isEmpty
+    }
+
     var crossfade: Double = 0 {
         didSet { engine.crossfade = crossfade }
     }
@@ -229,23 +241,45 @@ final class AppState {
         do {
             let data = try JSONEncoder().encode(show)
             try data.write(to: url)
+            recordRecentFile(url)
+            show.name = url.deletingPathExtension().lastPathComponent
             statusMessage = "Saved: \(url.lastPathComponent)"
         } catch {
             statusMessage = "Save failed: \(error.localizedDescription)"
         }
     }
 
-    func openShow() {
+    /// Opens a show via an NSOpenPanel. Returns true if a file was successfully loaded.
+    @discardableResult
+    func openShow() -> Bool {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [UTType(filenameExtension: "sld") ?? .data]
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard panel.runModal() == .OK, let url = panel.url else { return false }
+        return openShow(url: url)
+    }
+
+    /// Opens a show directly from a URL (used by recent-file list).
+    @discardableResult
+    func openShow(url: URL) -> Bool {
         do {
             let data = try Data(contentsOf: url)
             show = try JSONDecoder().decode(Show.self, from: data)
+            if show.effectFolders.isEmpty { seedDefaultEffectFolders() }
+            recordRecentFile(url)
             statusMessage = "Opened: \(url.lastPathComponent)"
+            return true
         } catch {
             statusMessage = "Open failed: \(error.localizedDescription)"
+            return false
         }
+    }
+
+    private func recordRecentFile(_ url: URL) {
+        var paths = UserDefaults.standard.stringArray(forKey: "recentShowFiles") ?? []
+        let key = url.absoluteString
+        paths.removeAll { $0 == key }
+        paths.insert(key, at: 0)
+        UserDefaults.standard.set(Array(paths.prefix(10)), forKey: "recentShowFiles")
     }
 
     func rebuildOutputDrivers() {

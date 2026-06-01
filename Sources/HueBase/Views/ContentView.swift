@@ -3,10 +3,25 @@ import SwiftUI
 struct ContentView: View {
     @Environment(AppState.self) private var appState
     @State private var showSettings = false
+    @State private var showSplash = true
 
     var body: some View {
+        ZStack {
+            if showSplash {
+                SplashView(isPresented: $showSplash)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .transition(.opacity)
+            } else {
+                mainInterface
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.35), value: showSplash)
+    }
+
+    private var mainInterface: some View {
         @Bindable var state = appState
-        NavigationSplitView {
+        return NavigationSplitView {
             SidebarView()
         } detail: {
             VStack(spacing: 0) {
@@ -19,7 +34,7 @@ struct ContentView: View {
         }
         .toolbar {
             ToolbarItem(placement: .navigation) {
-                Text(appState.show.name.isEmpty ? "HueBase" : appState.show.name)
+                Text(appState.show.name.isEmpty ? "SmartLight Designer" : appState.show.name)
                     .font(.system(size: 13, weight: .semibold, design: .monospaced))
                     .foregroundStyle(HueBaseTheme.accentGradient)
             }
