@@ -64,6 +64,16 @@ struct Timeline: Codable {
     var loop: Bool = false
     var bpm: Double = 120.0
     var markers: [TimelineMarker] = []
+
+    // Defensive decoder: any field absent from older files falls back to its default.
+    init(from decoder: Decoder) throws {
+        let c     = try decoder.container(keyedBy: CodingKeys.self)
+        tracks    = try c.decodeIfPresent([TimelineTrack].self,   forKey: .tracks)    ?? []
+        audioClip = try c.decodeIfPresent(AudioClip.self,         forKey: .audioClip)
+        loop      = try c.decodeIfPresent(Bool.self,              forKey: .loop)      ?? false
+        bpm       = try c.decodeIfPresent(Double.self,            forKey: .bpm)       ?? 120.0
+        markers   = try c.decodeIfPresent([TimelineMarker].self,  forKey: .markers)   ?? []
+    }
 }
 
 // MARK: - Palette → Timeline drag-and-drop

@@ -14,6 +14,16 @@ struct ArtNetConfiguration: Codable {
         UniverseMapping(id: UUID(), localUniverse: 0, outputUniverse: 0)
     ]
     var sendInterval: Double = 1.0 / 44.0     // ~44 fps
+
+    init(from decoder: Decoder) throws {
+        let c            = try decoder.container(keyedBy: CodingKeys.self)
+        enabled          = try c.decodeIfPresent(Bool.self,   forKey: .enabled)          ?? false
+        targetIP         = try c.decodeIfPresent(String.self, forKey: .targetIP)          ?? "255.255.255.255"
+        port             = try c.decodeIfPresent(UInt16.self, forKey: .port)              ?? 6454
+        universeMappings = try c.decodeIfPresent([UniverseMapping].self, forKey: .universeMappings)
+                           ?? [UniverseMapping(id: UUID(), localUniverse: 0, outputUniverse: 0)]
+        sendInterval     = try c.decodeIfPresent(Double.self, forKey: .sendInterval)     ?? (1.0 / 44.0)
+    }
 }
 
 struct SACNConfiguration: Codable {
@@ -26,6 +36,18 @@ struct SACNConfiguration: Codable {
     ]
     var useMulticast: Bool = true
     var unicastDestinations: [String] = []  // IPs all universes are sent to when not multicasting
+
+    init(from decoder: Decoder) throws {
+        let c               = try decoder.container(keyedBy: CodingKeys.self)
+        enabled             = try c.decodeIfPresent(Bool.self,   forKey: .enabled)             ?? false
+        sourceName          = try c.decodeIfPresent(String.self, forKey: .sourceName)           ?? "SmartLight"
+        priority            = try c.decodeIfPresent(UInt8.self,  forKey: .priority)             ?? 100
+        port                = try c.decodeIfPresent(UInt16.self, forKey: .port)                 ?? 5568
+        universeMappings    = try c.decodeIfPresent([UniverseMapping].self, forKey: .universeMappings)
+                              ?? [UniverseMapping(id: UUID(), localUniverse: 0, outputUniverse: 1)]
+        useMulticast        = try c.decodeIfPresent(Bool.self,   forKey: .useMulticast)         ?? true
+        unicastDestinations = try c.decodeIfPresent([String].self, forKey: .unicastDestinations) ?? []
+    }
 }
 
 struct USBDMXConfiguration: Codable {

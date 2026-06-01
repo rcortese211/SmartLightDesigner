@@ -36,6 +36,32 @@ struct Show: Codable {
         fixtureProfiles.first(where: { $0.id == fixture.profileId })
     }
 
+    // Defensive decoder: every field uses decodeIfPresent so that show files created
+    // before a field existed still open cleanly with sensible defaults.
+    init(from decoder: Decoder) throws {
+        let c           = try decoder.container(keyedBy: CodingKeys.self)
+        name            = try c.decodeIfPresent(String.self,                forKey: .name)           ?? ""
+        fixtureProfiles = try c.decodeIfPresent([FixtureProfile].self,      forKey: .fixtureProfiles) ?? []
+        fixtures        = try c.decodeIfPresent([Fixture].self,             forKey: .fixtures)       ?? []
+        layers          = try c.decodeIfPresent([Layer].self,               forKey: .layers)         ?? []
+        cues            = try c.decodeIfPresent([Cue].self,                 forKey: .cues)           ?? []
+        artNet          = try c.decodeIfPresent(ArtNetConfiguration.self,   forKey: .artNet)         ?? ArtNetConfiguration()
+        sACN            = try c.decodeIfPresent(SACNConfiguration.self,     forKey: .sACN)           ?? SACNConfiguration()
+        usbDMX          = try c.decodeIfPresent(USBDMXConfiguration.self,   forKey: .usbDMX)         ?? USBDMXConfiguration()
+        osc             = try c.decodeIfPresent(OSCConfiguration.self,      forKey: .osc)            ?? OSCConfiguration()
+        hue             = try c.decodeIfPresent(HueConfiguration.self,      forKey: .hue)            ?? HueConfiguration()
+        timecode        = try c.decodeIfPresent(TimecodeConfiguration.self, forKey: .timecode)       ?? TimecodeConfiguration()
+        effectFolders   = try c.decodeIfPresent([EffectFolder].self,        forKey: .effectFolders)  ?? []
+        globalColors    = try c.decodeIfPresent([GlobalColor].self,         forKey: .globalColors)   ?? []
+        savedScripts    = try c.decodeIfPresent([SavedScript].self,         forKey: .savedScripts)   ?? []
+        timeline        = try c.decodeIfPresent(Timeline.self,              forKey: .timeline)       ?? Timeline()
+        audio           = try c.decodeIfPresent(AudioConfiguration.self,    forKey: .audio)          ?? AudioConfiguration()
+        zoneLibrary     = try c.decodeIfPresent([NamedSpatialZone].self,    forKey: .zoneLibrary)    ?? []
+        notes           = try c.decodeIfPresent(String.self,                forKey: .notes)          ?? ""
+        createdAt       = try c.decodeIfPresent(Date.self,                  forKey: .createdAt)      ?? Date()
+        modifiedAt      = try c.decodeIfPresent(Date.self,                  forKey: .modifiedAt)     ?? Date()
+    }
+
     mutating func addCue(from layers: [Layer]) {
         let nextNumber = (cues.map(\.number).max() ?? 0) + 1
         let cue = Cue(number: nextNumber, name: "Cue \(Int(nextNumber))", layerSnapshot: layers)
