@@ -42,6 +42,14 @@ struct TimelineView: View {
     // Fade handle drag
     @State private var fadeHandleDrag: FadeHandleDragState? = nil
 
+    // Layer editor
+    @State private var layerEditorClip: (clipID: UUID, trackIndex: Int)? = nil
+    @State private var layerRenameID: UUID? = nil
+    @State private var layerRenameText: String = ""
+
+    // Audio pinned row horizontal offset (mirrors main scroll)
+    @State private var timelineScrollOffset: CGFloat = 0
+
     // Inline rename
     @State private var renamingClipID: UUID? = nil
     @State private var renameText: String = ""
@@ -57,7 +65,13 @@ struct TimelineView: View {
             HStack(alignment: .top, spacing: 0) {
                 trackHeaderColumn
                 Divider().background(HueBaseTheme.border)
-                timelineScrollArea
+                VStack(spacing: 0) {
+                    // Audio row — pinned above timeline, scrolls horizontally via Canvas offset
+                    audioPinnedRow
+                        .frame(height: kTrackHeight)
+                    Divider().background(HueBaseTheme.border)
+                    timelineScrollArea
+                }
             }
             .frame(maxHeight: .infinity)
         }
@@ -169,7 +183,11 @@ struct TimelineView: View {
 
     private var trackHeaderColumn: some View {
         VStack(spacing: 0) {
-            // Ruler spacer
+            // Audio header — pinned at top, aligned with audioPinnedRow
+            audioTrackHeader
+            Divider().background(HueBaseTheme.border)
+
+            // Ruler spacer — aligns with timeRuler in scroll area
             Color.clear.frame(height: kRulerHeight)
             Divider().background(HueBaseTheme.border)
 
@@ -177,9 +195,6 @@ struct TimelineView: View {
                 trackHeader(track: track, index: idx)
                 Divider().background(HueBaseTheme.border)
             }
-
-            // Audio track header
-            audioTrackHeader
 
             Spacer()
         }
@@ -287,10 +302,18 @@ struct TimelineView: View {
                                 Divider().background(HueBaseTheme.border)
                             }
 
-                            audioRow
                             Spacer()
                         }
                         .frame(width: totalWidth)
+
+                        // Scroll offset tracker — publishes horizontal offset for audioPinnedRow
+                        GeometryReader { geo in
+                            Color.clear.preference(
+                                key: TimelineScrollOffsetKey.self,
+                                value: max(0, -geo.frame(in: .named("timelineHScroll")).origin.x)
+                            )
+                        }
+                        .frame(width: totalWidth, height: 0)
 
                         // Per-second scroll anchors — real layout positions via HStack
                         HStack(spacing: 0) {
@@ -307,6 +330,8 @@ struct TimelineView: View {
                     }
                     .frame(minWidth: totalWidth)
                 }
+                .coordinateSpace(name: "timelineHScroll")
+                .onPreferenceChange(TimelineScrollOffsetKey.self) { timelineScrollOffset = $0 }
                 .background(HueBaseTheme.background)
                 .onChange(of: appState.timelineEngine.playheadTime) { _, t in
                     guard appState.timelineEngine.isPlaying else { return }
@@ -584,10 +609,20 @@ struct TimelineView: View {
         }
         .onTapGesture { selectedClipID = (selectedClipID == clip.id ? nil : clip.id) }
         .gesture(clipMoveDragGesture(clip: clip, trackIndex: trackIndex))
+        .popover(isPresented: Binding(
+            get: { layerEditorClip?.clipID == clip.id && layerEditorClip?.trackIndex == trackIndex },
+            set: { if !$0 { layerEditorClip = nil; layerRenameID = nil } }
+        ), arrowEdge: .bottom) {
+            clipLayerEditorPopover(clipID: clip.id, trackIndex: trackIndex)
+        }
         .contextMenu {
             Button("Rename…") {
                 renamingClipID = clip.id
                 renameText = clip.label
+            }
+            Button("Edit Layers…") {
+                selectedClipID = clip.id
+                layerEditorClip = (clipID: clip.id, trackIndex: trackIndex)
             }
             Menu("Change Color…") {
                 ForEach(kColorPresets, id: \.name) { preset in
@@ -666,62 +701,71 @@ struct TimelineView: View {
         }
     }
 
-    // MARK: - Audio row
+    // MARK: - Pinned audio row (outside horizontal scroll, Canvas-based)
 
-    private var audioRow: some View {
+    private var audioPinnedRow: some View {
         ZStack(alignment: .topLeading) {
             Color(white: 0.055)
 
             if let ac = appState.show.timeline.audioClip {
-                let clipW = max(4, (appState.audioPlayer.isLoaded
-                    ? appState.audioPlayer.fileDuration
-                    : ac.fileDuration) * pixelsPerSecond)
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color(hue: 0.55, saturation: 0.5, brightness: 0.35))
-                    RoundedRectangle(cornerRadius: 3)
-                        .strokeBorder(Color(hue: 0.55, saturation: 0.6, brightness: 0.55), lineWidth: 1)
+                let samples = appState.audioPlayer.waveformSamples
+                let fileDur = appState.audioPlayer.isLoaded ? appState.audioPlayer.fileDuration : ac.fileDuration
+                let clipStartPx = CGFloat(ac.startTime * pixelsPerSecond)
+                let clipW = max(4, CGFloat(fileDur * pixelsPerSecond))
 
-                    // Real waveform (RMS per bucket, rendered as vertical bars)
-                    let samples = appState.audioPlayer.waveformSamples
-                    Canvas { ctx, size in
-                        let midY = size.height / 2
-                        let waveColor = Color(hue: 0.55, saturation: 0.4, brightness: 0.75)
-                        guard !samples.isEmpty else {
-                            // Loading indicator — simple centre line
-                            ctx.stroke(
-                                Path { p in p.move(to: CGPoint(x: 0, y: midY))
-                                    p.addLine(to: CGPoint(x: size.width, y: midY)) },
-                                with: .color(waveColor.opacity(0.3)), lineWidth: 1)
-                            return
-                        }
+                Canvas { ctx, size in
+                    let screenStart = clipStartPx - timelineScrollOffset
+                    let screenEnd   = screenStart + clipW
+                    guard screenEnd > 0, screenStart < size.width else { return }
+
+                    let drawLeft  = max(0, screenStart)
+                    let drawRight = min(size.width, screenEnd)
+                    let bgRect = CGRect(x: drawLeft, y: 2,
+                                        width: drawRight - drawLeft, height: size.height - 4)
+
+                    let bgPath = Path(roundedRect: bgRect, cornerRadius: 3)
+                    ctx.fill(bgPath, with: .color(Color(hue: 0.55, saturation: 0.5, brightness: 0.35)))
+                    ctx.stroke(bgPath, with: .color(Color(hue: 0.55, saturation: 0.6, brightness: 0.55)), lineWidth: 1)
+
+                    let midY = size.height / 2
+                    let waveColor = Color(hue: 0.55, saturation: 0.4, brightness: 0.75)
+
+                    if samples.isEmpty {
+                        ctx.stroke(
+                            Path { p in
+                                p.move(to: CGPoint(x: drawLeft, y: midY))
+                                p.addLine(to: CGPoint(x: drawRight, y: midY))
+                            },
+                            with: .color(waveColor.opacity(0.3)), lineWidth: 1)
+                    } else {
                         let n = samples.count
                         var path = Path()
                         for i in 0..<n {
-                            let x = CGFloat(i) / CGFloat(n) * size.width
-                            let amp = CGFloat(samples[i]) * size.height * 0.48
-                            path.move(to: CGPoint(x: x, y: midY - amp))
-                            path.addLine(to: CGPoint(x: x, y: midY + amp))
+                            let sampleX = screenStart + CGFloat(i) / CGFloat(n) * clipW
+                            guard sampleX >= 0, sampleX <= size.width else { continue }
+                            let amp = CGFloat(samples[i]) * (size.height - 4) * 0.48
+                            path.move(to: CGPoint(x: sampleX, y: midY - amp))
+                            path.addLine(to: CGPoint(x: sampleX, y: midY + amp))
                         }
                         ctx.stroke(path, with: .color(waveColor.opacity(0.75)), lineWidth: 1)
                     }
 
-                    Text(ac.fileName)
-                        .font(.system(size: 9, weight: .medium, design: .monospaced))
-                        .foregroundStyle(Color.white.opacity(0.7))
-                        .padding(.leading, 6)
-                        .lineLimit(1)
+                    let labelX = max(drawLeft + 6, screenStart + 6)
+                    ctx.draw(
+                        Text(ac.fileName)
+                            .font(.system(size: 9, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Color.white.opacity(0.7)),
+                        at: CGPoint(x: labelX, y: 12)
+                    )
                 }
-                .frame(width: clipW, height: kTrackHeight - 4)
-                .offset(x: ac.startTime * pixelsPerSecond, y: 2)
             } else {
-                Text("Drop audio file or use Import in the track header")
+                Text("Drop audio file or use the Import button in the track header")
                     .font(.system(size: 9, design: .monospaced))
                     .foregroundStyle(Color(white: 0.25))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .frame(width: totalWidth, height: kTrackHeight)
+        .frame(maxWidth: .infinity)
         .clipped()
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             _ = providers.first?.loadItem(forTypeIdentifier: "public.file-url", options: nil) { item, _ in
@@ -840,6 +884,117 @@ struct TimelineView: View {
     }
 
     // MARK: - Data mutations
+
+    // MARK: - Layer editor popover
+
+    @ViewBuilder
+    private func clipLayerEditorPopover(clipID: UUID, trackIndex: Int) -> some View {
+        if trackIndex < appState.show.timeline.tracks.count,
+           let ci = appState.show.timeline.tracks[trackIndex].clips.firstIndex(where: { $0.id == clipID }) {
+            let clip = appState.show.timeline.tracks[trackIndex].clips[ci]
+            VStack(spacing: 0) {
+                HStack {
+                    Text("LAYERS — \(clip.label.uppercased())")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundStyle(Color(white: 0.5))
+                    Spacer()
+                    Text("drag to reorder · double-click to rename")
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundStyle(Color(white: 0.28))
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(HueBaseTheme.surfaceHigh)
+
+                Divider()
+
+                if clip.layers.isEmpty {
+                    Text("No layers in this clip")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(Color(white: 0.35))
+                        .frame(maxWidth: .infinity)
+                        .padding(20)
+                        .background(HueBaseTheme.surface)
+                } else {
+                    List {
+                        ForEach(Array(clip.layers.enumerated()), id: \.element.id) { idx, layer in
+                            HStack(spacing: 8) {
+                                Text("#\(idx + 1)")
+                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(idx == 0 ? HueBaseTheme.active : Color(white: 0.35))
+                                    .frame(width: 24, alignment: .leading)
+
+                                if layerRenameID == layer.id {
+                                    TextField("", text: $layerRenameText)
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .textFieldStyle(.plain)
+                                        .onSubmit {
+                                            let name = layerRenameText.trimmingCharacters(in: .whitespaces)
+                                            if !name.isEmpty {
+                                                updateClipLayer(layerID: layer.id, clipID: clipID,
+                                                                trackIndex: trackIndex) { $0.name = name }
+                                            }
+                                            layerRenameID = nil
+                                        }
+                                } else {
+                                    Text(layer.name)
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .foregroundStyle(Color(white: 0.82))
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .onTapGesture(count: 2) {
+                                            layerRenameID = layer.id
+                                            layerRenameText = layer.name
+                                        }
+                                }
+
+                                Text(layer.effectId)
+                                    .font(.system(size: 9, design: .monospaced))
+                                    .foregroundStyle(HueBaseTheme.purple.opacity(0.6))
+                                    .lineLimit(1)
+
+                                Circle()
+                                    .fill(layer.isEnabled ? HueBaseTheme.active.opacity(0.85) : Color(white: 0.25))
+                                    .frame(width: 6, height: 6)
+                            }
+                            .padding(.vertical, 2)
+                        }
+                        .onMove { from, to in
+                            guard trackIndex < appState.show.timeline.tracks.count,
+                                  let ci2 = appState.show.timeline.tracks[trackIndex].clips
+                                      .firstIndex(where: { $0.id == clipID })
+                            else { return }
+                            appState.show.timeline.tracks[trackIndex].clips[ci2].layers
+                                .move(fromOffsets: from, toOffset: to)
+                        }
+                    }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(HueBaseTheme.surface)
+                    .environment(\.editMode, .constant(.active))
+                }
+
+                Divider()
+                Text("Layer #1 has highest priority and overrides layers below it")
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundStyle(Color(white: 0.3))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(HueBaseTheme.surfaceHigh)
+            }
+            .frame(width: 360, height: min(130 + CGFloat(clip.layers.count) * 38, 440))
+            .background(HueBaseTheme.surface)
+        }
+    }
+
+    private func updateClipLayer(layerID: UUID, clipID: UUID, trackIndex: Int,
+                                  mutation: (inout Layer) -> Void) {
+        guard trackIndex < appState.show.timeline.tracks.count,
+              let ci = appState.show.timeline.tracks[trackIndex].clips.firstIndex(where: { $0.id == clipID }),
+              let li = appState.show.timeline.tracks[trackIndex].clips[ci].layers
+                  .firstIndex(where: { $0.id == layerID })
+        else { return }
+        mutation(&appState.show.timeline.tracks[trackIndex].clips[ci].layers[li])
+    }
 
     private func updateClip(id: UUID, trackIndex: Int, mutation: (inout TimelineClip) -> Void) {
         guard trackIndex < appState.show.timeline.tracks.count,
@@ -962,6 +1117,13 @@ struct TimelineView: View {
         f.maximumFractionDigits = 1
         return f
     }
+}
+
+// MARK: - Scroll offset preference key
+
+private struct TimelineScrollOffsetKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 // MARK: - Drag state
