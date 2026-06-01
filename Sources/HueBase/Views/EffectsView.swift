@@ -196,7 +196,16 @@ struct EffectsView: View {
                             .foregroundStyle(SmartLightTheme.purple)
                     }
                     .buttonStyle(.plain)
+                    Divider().frame(height: 14)
                 }
+                Button(action: storeLiveAsNewPalette) {
+                    Text("STORE")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundStyle(SmartLightTheme.purple.opacity(0.8))
+                }
+                .buttonStyle(.plain)
+                .disabled(selectedFolderID == nil)
+                .help("Store live layer stack as a new palette in the selected folder")
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
@@ -282,14 +291,6 @@ struct EffectsView: View {
                             .foregroundStyle(SmartLightTheme.purple)
                     }
                     .buttonStyle(.plain)
-                    Divider().frame(height: 14)
-                    Button(action: storeLiveAsNewPalette) {
-                        Text("STORE")
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundStyle(SmartLightTheme.purple.opacity(0.8))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(selectedFolderID == nil)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
