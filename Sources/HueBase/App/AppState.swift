@@ -155,6 +155,8 @@ final class AppState {
     private var _autosaveWork: DispatchWorkItem?
     private var _loadingAutosave = false
     @ObservationIgnored private var periodicAutosaveTimer: Timer?
+    // Previous timecode position used to detect threshold crossings for cue triggers.
+    @ObservationIgnored private var _lastTimecodeSeconds: Double = -1
 
     init() {
         let om  = DMXOutputManager()
@@ -182,9 +184,28 @@ final class AppState {
     deinit { periodicAutosaveTimer?.invalidate() }
 
     private func setupTimecodeCallbacks() {
-        timecodeEngine.onTimecodeUpdate = { _ in
-            // Drive the cue timeline when timecode is running
-            // Full timeline-to-cue mapping can be wired here
+        timecodeEngine.onTimecodeUpdate = { [weak self] tc in
+            guard let self else { return }
+            let secs = tc.totalSeconds
+            let prev = self._lastTimecodeSeconds
+            self._lastTimecodeSeconds = secs
+
+            // Only scan when moving forward in time (skip rewinds / seeks)
+            guard secs > prev, prev >= 0 else { return }
+
+            // Half-frame tolerance window for threshold detection
+            let halfFrame = 0.5 / tc.frameRate.rawValue
+            for (idx, cue) in self.engine.cueEngine.cues.enumerated() {
+                guard let cueTime = cue.timecodeTime else { continue }
+                // Fire when we crossed cueTime this tick, but avoid re-firing the active cue
+                if prev < cueTime + halfFrame && secs >= cueTime - halfFrame
+                    && self.engine.cueEngine.currentIndex != idx {
+                    DispatchQueue.main.async {
+                        self.engine.cueEngine.jump(to: idx)
+                    }
+                    break  // one trigger per tick
+                }
+            }
         }
     }
 

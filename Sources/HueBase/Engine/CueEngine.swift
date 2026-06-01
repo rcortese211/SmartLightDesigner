@@ -12,10 +12,13 @@ final class CueEngine {
 
     private var fadeStartLayers: [Layer] = []
     private var fadeTargetLayers: [Layer] = []
-    private var fadeStartTime: Double = 0
-    private var fadeDuration: Double = 0
-    private var isFading: Bool = false
+    private(set) var fadeStartTime: Double = 0
+    private(set) var fadeDuration: Double = 0
+    private(set) var isFading: Bool = false
     private var followTimer: Timer?
+
+    /// Wall-clock date when the current fade began. Used by UI progress indicators.
+    var fadeStartDate: Date { Date(timeIntervalSinceReferenceDate: fadeStartTime) }
 
     var currentCue: Cue? {
         guard currentIndex >= 0 && currentIndex < cues.count else { return nil }

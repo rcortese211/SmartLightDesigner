@@ -65,6 +65,23 @@ struct CueListView: View {
                 }
                 .disabled(appState.selectedCueID == nil)
                 Divider()
+                // Active cue badge
+                if let active = cueEngine.currentCue {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(SmartLightTheme.active)
+                            .frame(width: 7, height: 7)
+                        Text("CUE \(String(format: "%.1f", active.number)) LIVE")
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(SmartLightTheme.active)
+                    }
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(SmartLightTheme.active.opacity(0.12))
+                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(SmartLightTheme.active.opacity(0.4), lineWidth: 1))
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
+                Divider()
                 Button(action: { cueEngine.back() }) {
                     Label("Back", systemImage: "backward.fill")
                 }
@@ -73,21 +90,33 @@ struct CueListView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 Button(action: { cueEngine.exitCueMode() }) {
-                    Label("Stop", systemImage: "stop.fill")
+                    Label("Stop All", systemImage: "stop.fill")
                 }
+                .buttonStyle(.borderedProminent)
+                .tint(cueEngine.currentCue != nil ? SmartLightTheme.danger : Color.secondary)
             }
         }
     }
 
     private var cueTable: some View {
         @Bindable var state = appState
-        return Table(appState.show.cues, selection: $state.selectedCueID) {
+        return VStack(spacing: 0) {
+            Table(appState.show.cues, selection: $state.selectedCueID) {
             TableColumn("#") { cue in
-                Text(String(format: "%.1f", cue.number))
-                    .monospacedDigit()
-                    .bold(cue.id == cueEngine.currentCue?.id)
+                let isActive = cue.id == cueEngine.currentCue?.id
+                HStack(spacing: 3) {
+                    if isActive {
+                        Image(systemName: "play.fill")
+                            .foregroundStyle(SmartLightTheme.active)
+                            .font(.system(size: 8))
+                    }
+                    Text(String(format: "%.1f", cue.number))
+                        .monospacedDigit()
+                        .bold(isActive)
+                        .foregroundStyle(isActive ? SmartLightTheme.active : .primary)
+                }
             }
-            .width(50)
+            .width(54)
             TableColumn("Name") { cue in
                 Text(cue.name.isEmpty ? "—" : cue.name)
                     .foregroundStyle(cue.id == cueEngine.currentCue?.id ? SmartLightTheme.active : .primary)
@@ -131,6 +160,52 @@ struct CueListView: View {
             if let id = newID {
                 editingCue = appState.show.cues.first(where: { $0.id == id })
             }
+        }
+
+        // Fade progress banner — visible only while a cue crossfade is in progress
+        if cueEngine.isFading {
+            fadeBanner
+        }
+        } // end VStack
+    }
+
+    private var fadeBanner: some View {
+        let startDate = cueEngine.fadeStartDate
+        let duration  = max(cueEngine.fadeDuration, 0.001)
+        let cueName   = cueEngine.currentCue?.name ?? ""
+        return TimelineView(.animation) { ctx in
+            let elapsed  = ctx.date.timeIntervalSince(startDate)
+            let progress = min(elapsed / duration, 1.0)
+            let remaining = max(duration - elapsed, 0)
+            VStack(spacing: 3) {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        SmartLightTheme.surface
+                        LinearGradient(
+                            colors: [SmartLightTheme.purple.opacity(0.7), SmartLightTheme.active.opacity(0.7)],
+                            startPoint: .leading, endPoint: .trailing
+                        )
+                        .frame(width: geo.size.width * progress)
+                    }
+                }
+                .frame(height: 4)
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.system(size: 9))
+                        .foregroundStyle(SmartLightTheme.active)
+                    Text("Fading to \"\(cueName)\"")
+                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .foregroundStyle(SmartLightTheme.active)
+                    Spacer()
+                    Text(String(format: "%.1fs remaining", remaining))
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 10)
+                .padding(.bottom, 5)
+            }
+            .background(SmartLightTheme.surface)
+            .overlay(alignment: .top) { SmartLightTheme.active.opacity(0.3).frame(height: 1) }
         }
     }
 
