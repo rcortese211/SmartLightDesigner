@@ -74,7 +74,7 @@ final class CueEngine {
         }
 
         // Source is whatever was last rendered (or the new target if this is the first cue)
-        fadeSourceLayers = activeLayers ?? targetLayers
+        fadeSourceLayers = activeLayers ?? []
         fadeTargetLayers = targetLayers
         fadeDuration = cue.fadeInTime
         fadeStartTime = CACurrentMediaTime()
