@@ -253,27 +253,65 @@ struct OutputSettingsView: View {
                     }
 
                     Section {
-                        ForEach($state.show.hue.lightMappings) { $m in
-                            HStack {
-                                TextField("Name", text: $m.name).frame(width: 100)
+                        if appState.show.hue.lightMappings.isEmpty {
+                            Text("No light mappings — add one below.")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            // Header row
+                            HStack(spacing: 8) {
+                                Text("Name")
+                                    .frame(minWidth: 80, maxWidth: .infinity, alignment: .leading)
                                 Text("Light ID")
-                                TextField("1", text: $m.lightId).frame(width: 44)
+                                    .frame(width: 60, alignment: .leading)
                                 Text("Univ")
-                                TextField("0", value: $m.universe, formatter: NumberFormatter()).frame(width: 36)
+                                    .frame(width: 48, alignment: .leading)
                                 Text("Addr")
-                                TextField("1", value: $m.startAddress, formatter: NumberFormatter()).frame(width: 36)
+                                    .frame(width: 48, alignment: .leading)
+                                Spacer().frame(width: 28)
                             }
-                            .font(.callout)
-                        }
-                        .onDelete { state.show.hue.lightMappings.remove(atOffsets: $0) }
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(Color(white: 0.45))
+                            .padding(.bottom, 2)
 
-                        Button("Add Light Mapping") {
+                            ForEach($state.show.hue.lightMappings) { $m in
+                                HStack(spacing: 8) {
+                                    TextField("Name", text: $m.name)
+                                        .textFieldStyle(.roundedBorder)
+                                        .frame(minWidth: 80, maxWidth: .infinity)
+                                    TextField("1", text: $m.lightId)
+                                        .textFieldStyle(.roundedBorder)
+                                        .frame(width: 60)
+                                    TextField("0", value: $m.universe,
+                                              formatter: NumberFormatter())
+                                        .textFieldStyle(.roundedBorder)
+                                        .frame(width: 48)
+                                    TextField("1", value: $m.startAddress,
+                                              formatter: NumberFormatter())
+                                        .textFieldStyle(.roundedBorder)
+                                        .frame(width: 48)
+                                    Button {
+                                        state.show.hue.lightMappings.removeAll { $0.id == m.id }
+                                    } label: {
+                                        Image(systemName: "trash")
+                                            .foregroundStyle(Color.red.opacity(0.75))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .frame(width: 28)
+                                }
+                                .font(.callout)
+                            }
+                        }
+
+                        Button(action: {
                             let next = appState.show.hue.lightMappings.count + 1
                             state.show.hue.lightMappings.append(
                                 HueLightMapping(id: UUID(), name: "Light \(next)",
                                                 lightId: "\(next)", universe: 0,
                                                 startAddress: 1 + (next - 1) * 3)
                             )
+                        }) {
+                            Label("Add Light Mapping", systemImage: "plus")
                         }
                     } header: { Text("Light Mappings (Fixture → Hue Light)") }
                 }
