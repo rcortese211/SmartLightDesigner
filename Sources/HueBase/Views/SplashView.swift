@@ -42,6 +42,11 @@ struct SplashView: View {
                     .fill(SmartLightTheme.accentGradient)
                     .frame(height: 1.5)
                     .padding(.top, 5)
+                Text(AppVersion.display)
+                    .font(.system(size: 8.5, weight: .medium, design: .monospaced))
+                    .foregroundStyle(Color(white: 0.38))
+                    .kerning(0.5)
+                    .padding(.top, 4)
             }
             .padding(.bottom, 20)
 
