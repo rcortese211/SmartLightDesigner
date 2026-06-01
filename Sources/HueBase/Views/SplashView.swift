@@ -6,19 +6,34 @@ struct SplashView: View {
     @Environment(AppState.self) private var appState
     @Binding var isPresented: Bool
 
+    private static let panelW: CGFloat = 700
+    private static let panelH: CGFloat = 440
+
     var body: some View {
         ZStack {
-            SplashBackground()
+            // Dark backdrop over the main window
+            Color.black.opacity(0.72)
+                .ignoresSafeArea()
 
-            HStack(spacing: 0) {
-                Spacer()
-                actionCard
-                    .padding(.trailing, 72)
-                    .padding(.vertical, 40)
+            // Fixed-size panel
+            ZStack {
+                SplashBackground()
+
+                HStack(spacing: 0) {
+                    Spacer()
+                    actionCard
+                        .padding(.trailing, 28)
+                        .padding(.vertical, 28)
+                }
             }
+            .frame(width: Self.panelW, height: Self.panelH)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16)
+                .stroke(HueBaseTheme.borderBright.opacity(0.45), lineWidth: 1))
+            .shadow(color: Color(red: 0.42, green: 0.18, blue: 0.92).opacity(0.30),
+                    radius: 60, x: 0, y: 6)
+            .shadow(color: .black.opacity(0.55), radius: 28, x: 0, y: 14)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(HueBaseTheme.background)
     }
 
     // MARK: - Action card
@@ -27,33 +42,33 @@ struct SplashView: View {
         VStack(alignment: .leading, spacing: 0) {
 
             // Logo
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 5) {
                 Text("SMARTLIGHT")
-                    .font(.system(size: 30, weight: .black, design: .monospaced))
+                    .font(.system(size: 24, weight: .black, design: .monospaced))
                     .foregroundStyle(HueBaseTheme.accentGradient)
                     .kerning(3)
                 Text("DESIGNER")
-                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
                     .foregroundStyle(HueBaseTheme.active)
-                    .kerning(7)
+                    .kerning(6)
                 Rectangle()
                     .fill(HueBaseTheme.accentGradient)
                     .frame(height: 1.5)
-                    .padding(.top, 6)
+                    .padding(.top, 5)
             }
-            .padding(.bottom, 28)
+            .padding(.bottom, 20)
 
             // Primary actions
-            VStack(spacing: 10) {
+            VStack(spacing: 8) {
                 Button {
                     appState.newShow()
                     isPresented = false
                 } label: {
                     Label("New Show", systemImage: "plus.square.fill")
-                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                        .font(.system(size: 12, weight: .bold, design: .monospaced))
                         .kerning(1)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 10)
                 }
                 .buttonStyle(SplashPrimaryButtonStyle())
 
@@ -61,55 +76,55 @@ struct SplashView: View {
                     if appState.openShow() { isPresented = false }
                 } label: {
                     Label("Open Show…", systemImage: "folder")
-                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
                         .kerning(1)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 8)
                 }
                 .buttonStyle(SplashSecondaryButtonStyle())
             }
 
-            // Recent files
+            // Recent files (capped at 4 to stay within panel height)
             let recent = appState.recentFiles
             if !recent.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("RECENT FILES")
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("RECENT")
                         .font(.system(size: 8, weight: .semibold, design: .monospaced))
                         .foregroundStyle(HueBaseTheme.borderBright)
                         .kerning(2)
-                        .padding(.top, 24)
-                        .padding(.bottom, 2)
+                        .padding(.top, 16)
+                        .padding(.bottom, 1)
 
                     VStack(spacing: 3) {
-                        ForEach(recent.prefix(6), id: \.self) { url in
+                        ForEach(recent.prefix(4), id: \.self) { url in
                             Button {
                                 appState.openShow(url: url)
                                 isPresented = false
                             } label: {
-                                HStack(spacing: 10) {
+                                HStack(spacing: 8) {
                                     Image(systemName: "doc.fill")
-                                        .font(.system(size: 10))
+                                        .font(.system(size: 9))
                                         .foregroundStyle(HueBaseTheme.purple.opacity(0.8))
                                     VStack(alignment: .leading, spacing: 1) {
                                         Text(url.deletingPathExtension().lastPathComponent)
-                                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                            .font(.system(size: 10, weight: .medium, design: .monospaced))
                                             .foregroundStyle(Color.primary)
                                             .lineLimit(1)
                                         Text(url.deletingLastPathComponent().abbreviatingWithTildeInPath)
-                                            .font(.system(size: 9, design: .monospaced))
+                                            .font(.system(size: 8, design: .monospaced))
                                             .foregroundStyle(Color(white: 0.45))
                                             .lineLimit(1)
                                     }
                                     Spacer()
                                 }
                                 .contentShape(Rectangle())
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 7)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 6)
                             }
                             .buttonStyle(.plain)
                             .background(HueBaseTheme.surface.opacity(0.6))
-                            .clipShape(RoundedRectangle(cornerRadius: 5))
-                            .overlay(RoundedRectangle(cornerRadius: 5)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                            .overlay(RoundedRectangle(cornerRadius: 4)
                                 .stroke(HueBaseTheme.border.opacity(0.6), lineWidth: 1))
                         }
                     }
@@ -122,21 +137,19 @@ struct SplashView: View {
                     Spacer()
                     Button("Continue last show") { isPresented = false }
                         .buttonStyle(.plain)
-                        .font(.system(size: 10, design: .monospaced))
+                        .font(.system(size: 9, design: .monospaced))
                         .foregroundStyle(HueBaseTheme.borderBright)
                 }
-                .padding(.top, 20)
+                .padding(.top, 14)
             }
         }
-        .frame(width: 310)
-        .padding(30)
+        .frame(width: 260)
+        .padding(24)
         .background(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: 12)
                 .fill(HueBaseTheme.background.opacity(0.88))
-                .background(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(HueBaseTheme.border, lineWidth: 1)
-                )
+                .overlay(RoundedRectangle(cornerRadius: 12)
+                    .stroke(HueBaseTheme.border, lineWidth: 1))
         )
     }
 }
@@ -152,7 +165,6 @@ struct SplashBackground: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .ignoresSafeArea()
     }
 }
 
@@ -166,6 +178,8 @@ enum SplashGeometry {
 
     static func draw(ctx: GraphicsContext, size: CGSize, time: Double) {
         let c = focal(size: size)
+        // All hardcoded radii were tuned for a ~700px tall canvas; scale to actual size.
+        let s = min(size.width, size.height) / 700.0
 
         // 1 ── Deep background fill
         ctx.fill(Path(CGRect(origin: .zero, size: size)),
@@ -173,7 +187,7 @@ enum SplashGeometry {
 
         // 2 ── Radial purple glow at focal point
         ctx.drawLayer { g in
-            let r: CGFloat = min(size.width, size.height) * 0.65
+            let r = min(size.width, size.height) * 0.65
             g.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2)),
                    with: .radialGradient(
                        Gradient(stops: [
@@ -185,14 +199,13 @@ enum SplashGeometry {
         }
 
         // 3 ── Dot grid (batched into one path for performance)
-        let spacing: CGFloat = 38
+        let spacing = max(22.0, 38.0 * s)
+        let falloff  = 460.0 * s
         var gridPath = Path()
-        for row in stride(from: 0.0, through: Double(size.height), by: Double(spacing)) {
-            for col in stride(from: 0.0, through: Double(size.width) * 0.80, by: Double(spacing)) {
+        for row in stride(from: 0.0, through: Double(size.height), by: spacing) {
+            for col in stride(from: 0.0, through: Double(size.width) * 0.80, by: spacing) {
                 let dist = hypot(col - Double(c.x), row - Double(c.y))
-                let alpha = max(0.0, 1.0 - dist / 460.0)
-                // only worth adding if visible
-                if alpha > 0.02 {
+                if dist / falloff < 0.98 {
                     gridPath.addEllipse(in: CGRect(x: col - 1.5, y: row - 1.5, width: 3, height: 3))
                 }
             }
@@ -204,7 +217,8 @@ enum SplashGeometry {
         for i in 0..<beamCount {
             let angle = Double(i) / Double(beamCount) * .pi * 2
             let isMajor = i % 3 == 0
-            let len: CGFloat = isMajor ? min(size.width, size.height) * 1.1 : min(size.width, size.height) * 0.75
+            let len = (isMajor ? min(size.width, size.height) * 1.1
+                                : min(size.width, size.height) * 0.75)
             let ex = c.x + cos(angle) * len
             let ey = c.y + sin(angle) * len
             var path = Path()
@@ -223,7 +237,7 @@ enum SplashGeometry {
         }
 
         // 5 ── Concentric hexagonal rings (slow counter-clockwise)
-        let hexRadii: [CGFloat] = [70, 135, 200, 265, 330]
+        let hexRadii: [CGFloat] = [70, 135, 200, 265, 330].map { $0 * s }
         for (ri, radius) in hexRadii.enumerated() {
             let rot = time * -0.018 + Double(ri) * 0.26
             let alpha = max(0.06, 0.38 - Double(ri) * 0.06)
@@ -233,7 +247,7 @@ enum SplashGeometry {
         }
 
         // 6 ── Concentric octagonal rings (slow clockwise, offset color)
-        let octRadii: [CGFloat] = [100, 175, 250, 325]
+        let octRadii: [CGFloat] = [100, 175, 250, 325].map { $0 * s }
         for (ri, radius) in octRadii.enumerated() {
             let rot = time * 0.012 + Double(ri) * 0.40
             let alpha = max(0.04, 0.28 - Double(ri) * 0.05)
@@ -244,14 +258,13 @@ enum SplashGeometry {
 
         // 7 ── Outer 12-gon ring (very slow, amber)
         let outerRot = time * 0.007
-        ctx.stroke(polygon(center: c, sides: 12, radius: 390, rotation: outerRot),
+        ctx.stroke(polygon(center: c, sides: 12, radius: 390 * s, rotation: outerRot),
                    with: .color(Color(red: 0.95, green: 0.73, blue: 0.00).opacity(0.12)),
                    lineWidth: 1.2)
 
         // 8 ── Amber arc segments (pulsing)
-        let arcCount = 3
-        for i in 0..<arcCount {
-            let baseRadius: CGFloat = 110 + CGFloat(i) * 72
+        for i in 0..<3 {
+            let baseRadius = (110.0 + Double(i) * 72.0) * s
             let startA = time * (i % 2 == 0 ? 0.14 : -0.10) + Double(i) * 2.09
             let sweep  = 0.55 + sin(time * 0.4 + Double(i)) * 0.15
             var arc = Path()
@@ -266,22 +279,22 @@ enum SplashGeometry {
                        style: StrokeStyle(lineWidth: 2.0, lineCap: .round))
         }
 
-        // 9 ── Inner connector spokes between hex vertices at small radius
-        let spokeRadius: CGFloat = 70
+        // 9 ── Inner triangle spoke (amber)
         let spokeRot = time * 0.030
-        let crossSpoke = polygon(center: c, sides: 3, radius: spokeRadius, rotation: spokeRot)
-        ctx.stroke(crossSpoke,
+        ctx.stroke(polygon(center: c, sides: 3, radius: 70 * s, rotation: spokeRot),
                    with: .color(Color(red: 0.95, green: 0.73, blue: 0.00).opacity(0.35)),
                    lineWidth: 1.2)
 
         // 10 ── Bright center node
+        let nr = max(5.0, 10.0 * s)
         ctx.drawLayer { g in
-            g.fill(Path(ellipseIn: CGRect(x: c.x - 10, y: c.y - 10, width: 20, height: 20)),
+            g.fill(Path(ellipseIn: CGRect(x: c.x - nr, y: c.y - nr, width: nr * 2, height: nr * 2)),
                    with: .radialGradient(
                        Gradient(colors: [Color.white, Color(red: 0.95, green: 0.73, blue: 0.00)]),
-                       center: c, startRadius: 0, endRadius: 10))
+                       center: c, startRadius: 0, endRadius: nr))
         }
-        ctx.fill(Path(ellipseIn: CGRect(x: c.x - 3.5, y: c.y - 3.5, width: 7, height: 7)),
+        let dr = max(2.0, 3.5 * s)
+        ctx.fill(Path(ellipseIn: CGRect(x: c.x - dr, y: c.y - dr, width: dr * 2, height: dr * 2)),
                  with: .color(.white))
 
         // 11 ── Right-side fade so the action card is legible
