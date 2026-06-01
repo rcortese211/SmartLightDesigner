@@ -32,9 +32,6 @@ struct EffectsView: View {
         }
         .navigationTitle("Effects")
         .onAppear { autoSelectIfNeeded() }
-        .toolbar {
-            ToolbarItemGroup { }
-        }
         .sheet(isPresented: $showAddFolder) { AddFolderSheet(isPresented: $showAddFolder) }
         .sheet(isPresented: $showAddPalette) {
             AddPaletteSheet(isPresented: $showAddPalette, folderID: selectedFolderID)
