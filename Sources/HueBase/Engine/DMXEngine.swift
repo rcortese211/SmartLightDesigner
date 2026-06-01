@@ -19,7 +19,10 @@ final class DMXEngine {
     var crossfade: Double = 0
     var programBLayers: [Layer] = []
 
-    // Timeline playback override — when set, takes priority over show.layers and cue engine
+    // Which source drives Program A — must be kept in sync with AppState.outputSource
+    var outputSource: OutputSource = .effects
+
+    // Timeline playback override — used when outputSource == .timeline
     var playbackLayers: [Layer]? = nil
 
     // Highlight override — applied after all other rendering; highest priority
@@ -73,7 +76,15 @@ final class DMXEngine {
         let time = Date().timeIntervalSinceReferenceDate - startTime
         cueEngine.updateFade(currentTime: Date().timeIntervalSinceReferenceDate)
 
-        let aLayers = playbackLayers ?? cueEngine.activeLayers ?? show.layers
+        let aLayers: [Layer]
+        switch outputSource {
+        case .effects:
+            aLayers = show.layers
+        case .cues:
+            aLayers = cueEngine.activeLayers ?? show.layers
+        case .timeline:
+            aLayers = playbackLayers ?? show.layers
+        }
 
         if crossfade <= 0.001 {
             renderUniverses(layers: aLayers, show: show, time: time, into: &bufA)

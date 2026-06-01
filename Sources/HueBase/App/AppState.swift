@@ -108,7 +108,9 @@ final class AppState {
     var effectsSelectedFolderID: UUID? = nil
     var effectsSelectedPaletteID: UUID? = nil
     var effectsSelectedLayerID: UUID? = nil
-    var outputSource: OutputSource = .effects
+    var outputSource: OutputSource = .effects {
+        didSet { engine.outputSource = outputSource }
+    }
 
     // Advanced Pi session features — hidden behind advancedModeEnabled
     var advancedModeEnabled: Bool = UserDefaults.standard.bool(forKey: "advancedModeEnabled") {
