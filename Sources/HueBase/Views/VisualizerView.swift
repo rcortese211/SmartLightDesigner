@@ -156,7 +156,7 @@ struct VisualizerView: View {
                 .foregroundStyle(Color(white: 0.38))
             Button(action: { zoomScale = max(0.25, zoomScale / 1.25) }) {
                 Image(systemName: "minus.magnifyingglass")
-                    .font(.system(size: 11))
+                    .font(.system(size: 13))
             }
             .buttonStyle(.plain)
             .foregroundStyle(Color(white: 0.55))
@@ -167,7 +167,7 @@ struct VisualizerView: View {
                 .onTapGesture { resetZoom() }
             Button(action: { zoomScale = min(8.0, zoomScale * 1.25) }) {
                 Image(systemName: "plus.magnifyingglass")
-                    .font(.system(size: 11))
+                    .font(.system(size: 13))
             }
             .buttonStyle(.plain)
             .foregroundStyle(Color(white: 0.55))

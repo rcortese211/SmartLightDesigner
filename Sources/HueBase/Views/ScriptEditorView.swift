@@ -68,7 +68,7 @@ struct ScriptEditorView: View {
                         Spacer()
                         Button("CLEAR") { scriptEngine.clearOutput() }
                             .buttonStyle(.plain)
-                            .font(.system(size: 9, weight: .medium, design: .monospaced))
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
                             .foregroundStyle(Color(white: 0.38))
                     }
                     .padding(.horizontal, 8).padding(.vertical, 6)
@@ -93,8 +93,8 @@ struct ScriptEditorView: View {
         HStack(spacing: 8) {
             Button(action: run) {
                 HStack(spacing: 4) {
-                    Image(systemName: "play.fill").font(.system(size: 10))
-                    Text("RUN").font(.system(size: 11, weight: .bold, design: .monospaced))
+                    Image(systemName: "play.fill").font(.system(size: 12))
+                    Text("RUN").font(.system(size: 12, weight: .bold, design: .monospaced))
                 }
                 .padding(.horizontal, 12).padding(.vertical, 5)
                 .background(scriptEngine.isRunning ? SmartLightTheme.surface : SmartLightTheme.purple.opacity(0.2))
@@ -107,8 +107,8 @@ struct ScriptEditorView: View {
 
             Button(action: saveScript) {
                 HStack(spacing: 4) {
-                    Image(systemName: "square.and.arrow.down").font(.system(size: 10))
-                    Text("SAVE").font(.system(size: 11, weight: .bold, design: .monospaced))
+                    Image(systemName: "square.and.arrow.down").font(.system(size: 12))
+                    Text("SAVE").font(.system(size: 12, weight: .bold, design: .monospaced))
                 }
                 .padding(.horizontal, 12).padding(.vertical, 5)
                 .background(SmartLightTheme.surface)

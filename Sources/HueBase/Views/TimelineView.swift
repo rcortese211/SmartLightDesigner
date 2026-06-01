@@ -116,8 +116,8 @@ struct TimelineView: View {
                 appState.show.timeline.loop.toggle()
             } label: {
                 Image(systemName: "repeat")
-                    .font(.system(size: 11))
-                    .frame(width: 22, height: 20)
+                    .font(.system(size: 13))
+                    .frame(width: 26, height: 24)
                     .foregroundStyle(looping ? SmartLightTheme.active : Color(white: 0.4))
                     .background(looping ? SmartLightTheme.active.opacity(0.18) : SmartLightTheme.surface)
                     .overlay(RoundedRectangle(cornerRadius: 2).stroke(SmartLightTheme.border, lineWidth: 1))
@@ -1100,8 +1100,8 @@ struct TimelineView: View {
                                action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: 10))
-                .frame(width: 22, height: 20)
+                .font(.system(size: 12))
+                .frame(width: 26, height: 24)
                 .foregroundStyle(tint)
                 .background(SmartLightTheme.surface)
                 .overlay(RoundedRectangle(cornerRadius: 2).stroke(SmartLightTheme.border, lineWidth: 1))

@@ -25,15 +25,15 @@ struct SidebarView: View {
             List(AppTab.sidebarCases, selection: $state.selectedTab) { tab in
                 HStack(spacing: 8) {
                     Image(systemName: tab.systemImage)
-                        .font(.system(size: 12))
-                        .frame(width: 16)
+                        .font(.system(size: 14))
+                        .frame(width: 18)
                         .foregroundStyle(
                             state.selectedTab == tab
                                 ? AnyShapeStyle(SmartLightTheme.accentGradient)
                                 : AnyShapeStyle(Color(white: 0.5))
                         )
                     Text(tab.rawValue.uppercased())
-                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
                         .kerning(0.8)
                         .foregroundStyle(
                             state.selectedTab == tab

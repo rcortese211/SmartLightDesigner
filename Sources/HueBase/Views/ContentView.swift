@@ -55,7 +55,7 @@ struct ContentView: View {
                 OutputToggleButton()
                 Button(action: { showSettings = true }) {
                     Image(systemName: "gearshape")
-                        .font(.system(size: 13))
+                        .font(.system(size: 15))
                 }
                 .help("Patch & Output Settings")
             }
@@ -89,9 +89,9 @@ struct OutputToggleButton: View {
             HStack(spacing: 5) {
                 Circle()
                     .fill(appState.isOutputEnabled ? SmartLightTheme.active : Color(white: 0.3))
-                    .frame(width: 7, height: 7)
+                    .frame(width: 8, height: 8)
                 Text(appState.isOutputEnabled ? "OUTPUT ON" : "OUTPUT OFF")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .font(.system(size: 12, weight: .bold, design: .monospaced))
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 5)

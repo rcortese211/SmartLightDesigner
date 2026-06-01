@@ -16,7 +16,7 @@ struct SettingsSheetView: View {
                 Spacer()
                 Button(action: { isPresented = false }) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 16))
+                        .font(.system(size: 18))
                         .foregroundStyle(Color(white: 0.35))
                 }
                 .buttonStyle(.plain)
@@ -76,10 +76,10 @@ struct ABCrossfaderBar: View {
             // Snap to A
             Button("A") { state.crossfade = 0 }
                 .buttonStyle(.plain)
-                .font(.system(size: 11, weight: .heavy, design: .monospaced))
+                .font(.system(size: 13, weight: .heavy, design: .monospaced))
                 .foregroundStyle(appState.crossfade < 0.01
                     ? SmartLightTheme.active : Color(white: 0.38))
-                .frame(width: 18)
+                .frame(width: 20)
 
             Text("PROG A")
                 .font(.system(size: 9, weight: .semibold, design: .monospaced))
@@ -98,10 +98,10 @@ struct ABCrossfaderBar: View {
             // Snap to B
             Button("B") { state.crossfade = 1 }
                 .buttonStyle(.plain)
-                .font(.system(size: 11, weight: .heavy, design: .monospaced))
+                .font(.system(size: 13, weight: .heavy, design: .monospaced))
                 .foregroundStyle(appState.crossfade > 0.99
                     ? SmartLightTheme.purple : Color(white: 0.38))
-                .frame(width: 18)
+                .frame(width: 20)
 
             Divider().frame(height: 14)
 

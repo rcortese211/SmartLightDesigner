@@ -62,7 +62,7 @@ struct EffectsView: View {
                 ForEach(appState.show.effectFolders) { folder in
                     HStack(spacing: 6) {
                         Image(systemName: "folder.fill")
-                            .font(.system(size: 10))
+                            .font(.system(size: 12))
                             .foregroundStyle(SmartLightTheme.purple.opacity(0.7))
                         Text(folder.name)
                             .font(.system(size: 11, weight: .medium, design: .monospaced))
@@ -89,7 +89,7 @@ struct EffectsView: View {
             HStack {
                 Button(action: { showAddFolder = true }) {
                     Image(systemName: "folder.badge.plus")
-                        .font(.system(size: 11))
+                        .font(.system(size: 13))
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(SmartLightTheme.purple)
@@ -287,18 +287,18 @@ struct EffectsView: View {
 
                     Button(action: recallSelectedPalette) {
                         HStack(spacing: 4) {
-                            Image(systemName: "bolt.fill").font(.system(size: 9))
+                            Image(systemName: "bolt.fill").font(.system(size: 11))
                             Text("RECALL → A")
-                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .font(.system(size: 11, weight: .bold, design: .monospaced))
                         }
                         .foregroundStyle(SmartLightTheme.active)
                     }
                     .buttonStyle(.plain)
                     Button(action: recallSelectedPaletteToB) {
                         HStack(spacing: 4) {
-                            Image(systemName: "bolt").font(.system(size: 9))
+                            Image(systemName: "bolt").font(.system(size: 11))
                             Text("→ B")
-                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .font(.system(size: 11, weight: .bold, design: .monospaced))
                         }
                         .foregroundStyle(SmartLightTheme.purple)
                     }

@@ -70,9 +70,9 @@ struct BenchmarkView: View {
 
             Button(action: runBenchmark) {
                 HStack(spacing: 6) {
-                    Image(systemName: "play.fill").font(.system(size: 11))
+                    Image(systemName: "play.fill").font(.system(size: 13))
                     Text(state == .done ? "RUN AGAIN" : "RUN BENCHMARK")
-                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                        .font(.system(size: 13, weight: .bold, design: .monospaced))
                         .kerning(1)
                 }
                 .padding(.horizontal, 20)
