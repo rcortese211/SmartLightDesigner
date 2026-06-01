@@ -1,12 +1,42 @@
 import SwiftUI
 
+// MARK: - Timecode helpers (HH:MM:SS;FF at 30fps)
+
 private func formatTimecode(_ seconds: Double?) -> String {
     guard let s = seconds else { return "—" }
-    let total = Int(max(0, s))
-    let hh = total / 3600
-    let mm = (total % 3600) / 60
-    let ss = total % 60
-    return String(format: "%02d:%02d:%02d", hh, mm, ss)
+    let total = max(0, s)
+    let hh = Int(total) / 3600
+    let mm = (Int(total) % 3600) / 60
+    let ss = Int(total) % 60
+    let ff = Int((total - Double(Int(total))) * 30)
+    return String(format: "%02d:%02d:%02d;%02d", hh, mm, ss, ff)
+}
+
+// Parses "HH:MM:SS;FF", "HH:MM:SS:FF", or raw 8-digit "HHMMSSFF" → seconds (Double)
+private func parseTimecode(_ str: String) -> Double? {
+    let s = str.trimmingCharacters(in: .whitespaces)
+    // Raw 8-digit: 02030405 → 02:03:04;05
+    let digits = s.filter { $0.isNumber }
+    if digits == s, digits.count == 8 {
+        let hh = Double(digits.prefix(2)) ?? 0
+        let mm = Double(digits.dropFirst(2).prefix(2)) ?? 0
+        let ss = Double(digits.dropFirst(4).prefix(2)) ?? 0
+        let ff = Double(digits.dropFirst(6).prefix(2)) ?? 0
+        return hh * 3600 + mm * 60 + ss + ff / 30
+    }
+    // Delimited: HH:MM:SS;FF or HH:MM:SS:FF
+    let parts = s.components(separatedBy: CharacterSet(charactersIn: ":;"))
+    if parts.count == 4,
+       let hh = Double(parts[0]), let mm = Double(parts[1]),
+       let ss = Double(parts[2]), let ff = Double(parts[3]) {
+        return hh * 3600 + mm * 60 + ss + ff / 30
+    }
+    // HH:MM:SS without frames
+    if parts.count == 3,
+       let hh = Double(parts[0]), let mm = Double(parts[1]), let ss = Double(parts[2]) {
+        return hh * 3600 + mm * 60 + ss
+    }
+    return nil
 }
 
 struct CueListView: View {
@@ -86,7 +116,7 @@ struct CueListView: View {
                     .monospacedDigit()
                     .foregroundStyle(cue.timecodeTime != nil ? .primary : .tertiary)
             }
-            .width(72)
+            .width(90)
             TableColumn("Palette") { cue in
                 Text(cue.paletteRef?.paletteName ?? "—")
                     .foregroundStyle(cue.paletteRef != nil ? .primary : .tertiary)
@@ -181,14 +211,25 @@ struct CueEditorView: View {
                     set: { cue.timecodeTime = $0 ? 0.0 : nil }
                 ))
                 if cue.timecodeTime != nil {
-                    LabeledContent("Time (HH:MM:SS)") {
-                        TextField("00:00:00", value: Binding(
-                            get: { cue.timecodeTime ?? 0 },
-                            set: { cue.timecodeTime = $0 }
-                        ), formatter: timecodeFormatter)
+                    LabeledContent("Time (HH:MM:SS;FF)") {
+                        TextField("00:00:00;00", text: Binding(
+                            get: { formatTimecode(cue.timecodeTime) == "—"
+                                    ? "" : formatTimecode(cue.timecodeTime) },
+                            set: { str in
+                                if let secs = parseTimecode(str) {
+                                    cue.timecodeTime = secs
+                                } else if str.isEmpty {
+                                    cue.timecodeTime = 0
+                                }
+                            }
+                        ))
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 90)
+                        .frame(width: 110)
+                        .font(.system(.body, design: .monospaced))
                     }
+                    Text("Enter as HH:MM:SS;FF or 8 digits (e.g. 01023015)")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(.secondary)
                 }
             }
             Section("Palette") {
@@ -234,12 +275,6 @@ struct CueEditorView: View {
         return f
     }
 
-    private var timecodeFormatter: NumberFormatter {
-        let f = NumberFormatter()
-        f.numberStyle = .none
-        f.minimum = 0
-        return f
-    }
 }
 
 // Sheet that lists all folders/palettes for assignment

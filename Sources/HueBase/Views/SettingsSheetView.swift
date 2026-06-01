@@ -40,6 +40,8 @@ struct SettingsSheetView: View {
                 .tabItem { Label("Output", systemImage: "network") }
                 BenchmarkView()
                     .tabItem { Label("Benchmark", systemImage: "gauge.with.needle") }
+                SessionsSettingsView()
+                    .tabItem { Label("Sessions", systemImage: "point.3.connected.trianglepath.dotted") }
             }
             .background(SmartLightTheme.background)
 
@@ -210,5 +212,348 @@ struct ABCrossfaderBar: View {
         if appState.crossfade < 0.01 { return "A" }
         if appState.crossfade > 0.99 { return "B" }
         return "\(Int(appState.crossfade * 100))%"
+    }
+}
+
+// MARK: - Sessions Settings
+
+struct SessionsSettingsView: View {
+    @Environment(AppState.self) private var appState
+
+    var body: some View {
+        @Bindable var state = appState
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                // Advanced mode gate
+                advancedModeSection
+
+                if appState.advancedModeEnabled {
+                    connectionSection
+                    if appState.sessionClient != nil { sessionSection }
+                }
+            }
+            .padding(.top, 20)
+            .animation(.easeInOut(duration: 0.2), value: appState.advancedModeEnabled)
+        }
+        .background(SmartLightTheme.background)
+    }
+
+    // MARK: Advanced mode toggle
+
+    private var advancedModeSection: some View {
+        Group {
+            sectionHeader("Advanced User Mode")
+            VStack(alignment: .leading, spacing: 10) {
+                Toggle("Enable Pi Sessions & Remote Control", isOn: Binding(
+                    get: { appState.advancedModeEnabled },
+                    set: { appState.advancedModeEnabled = $0 }
+                ))
+                Text("When enabled, this Mac can join or control a SmartLight Pi running in Player mode. Sessions allow one Pi and multiple Macs to collaborate — the Pi handles all DMX output.")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(Color(white: 0.45))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(16)
+            .background(SmartLightTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(RoundedRectangle(cornerRadius: 6).stroke(SmartLightTheme.border, lineWidth: 1))
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
+        }
+    }
+
+    // MARK: Connect to Pi
+
+    @State private var piAddressInput = ""
+    @State private var isConnecting = false
+
+    private var connectionSection: some View {
+        Group {
+            sectionHeader("Pi Connection")
+            VStack(alignment: .leading, spacing: 10) {
+                if let client = appState.sessionClient {
+                    connectionStatusRow(client: client)
+                } else {
+                    HStack(spacing: 8) {
+                        TextField("Pi IP address (e.g. 192.168.1.42)", text: $piAddressInput)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(size: 12, design: .monospaced))
+                        Button("Connect") {
+                            let client = SessionClient()
+                            appState.sessionClient = client
+                            isConnecting = true
+                            Task {
+                                await client.connect(to: piAddressInput.trimmingCharacters(in: .whitespaces))
+                                isConnecting = false
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(SmartLightTheme.purple)
+                        .disabled(piAddressInput.trimmingCharacters(in: .whitespaces).isEmpty || isConnecting)
+                    }
+                    if isConnecting {
+                        ProgressView("Connecting…")
+                            .font(.system(size: 11, design: .monospaced))
+                    }
+                }
+            }
+            .padding(16)
+            .background(SmartLightTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(RoundedRectangle(cornerRadius: 6).stroke(SmartLightTheme.border, lineWidth: 1))
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
+        }
+    }
+
+    @ViewBuilder
+    private func connectionStatusRow(client: SessionClient) -> some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(client.state.isConnected ? SmartLightTheme.active : Color.orange)
+                .frame(width: 7, height: 7)
+            Group {
+                switch client.state {
+                case .disconnected: Text("Disconnected")
+                case .connecting:   Text("Connecting…")
+                case .connectedIdle(_, let mode):
+                    Text("Connected — Pi is in \(mode.rawValue.capitalized) mode")
+                case .inSession(let s, _, let role, _):
+                    Text("In session "\(s.sessionName)" as \(role.displayName)")
+                case .error(let msg):
+                    Text("Error: \(msg)").foregroundStyle(.red)
+                }
+            }
+            .font(.system(size: 11, design: .monospaced))
+            .foregroundStyle(Color(white: 0.75))
+
+            Spacer()
+            Button("Disconnect") {
+                client.disconnect()
+                appState.sessionClient = nil
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
+    }
+
+    // MARK: Session management
+
+    @State private var myName = Host.current().localizedName ?? "Mac"
+    @State private var selectedRole: SessionRole = .control
+    @State private var newSessionName = ""
+    @State private var showCreateSession = false
+    @State private var selectedSessionId: String? = nil
+
+    private var sessionSection: some View {
+        Group {
+            sectionHeader("Sessions")
+            VStack(alignment: .leading, spacing: 12) {
+                if let client = appState.sessionClient {
+                    // Active session info
+                    if case .inSession(let session, _, let role, _) = client.state {
+                        activeSessionView(session: session, role: role, client: client)
+                    } else {
+                        // Session browser
+                        sessionBrowserView(client: client)
+                    }
+                }
+            }
+            .padding(16)
+            .background(SmartLightTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(RoundedRectangle(cornerRadius: 6).stroke(SmartLightTheme.border, lineWidth: 1))
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
+        }
+    }
+
+    @ViewBuilder
+    private func activeSessionView(session: SessionInfo, role: SessionRole, client: SessionClient) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(session.sessionName)
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                Text("Your role: \(role.displayName) — \(role.roleDescription)")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(Color(white: 0.45))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            Button("Leave") { Task { await client.leaveSession() } }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+        }
+
+        Divider().padding(.vertical, 4)
+
+        // Session roster
+        Text("PARTICIPANTS")
+            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+            .foregroundStyle(Color(white: 0.4))
+            .kerning(1)
+
+        ForEach(session.clients) { participant in
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(SmartLightTheme.active)
+                    .frame(width: 5, height: 5)
+                Text(participant.name)
+                    .font(.system(size: 11, design: .monospaced))
+                Spacer()
+                Text(participant.role.displayName)
+                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(roleColor(participant.role))
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(roleColor(participant.role).opacity(0.15))
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+            }
+        }
+
+        if let status = client.piStatus {
+            Divider().padding(.vertical, 4)
+            piStatusRow(status: status)
+        }
+    }
+
+    @ViewBuilder
+    private func sessionBrowserView(client: SessionClient) -> some View {
+        // My name + role picker
+        HStack(spacing: 8) {
+            TextField("Your name", text: $myName)
+                .textFieldStyle(.roundedBorder)
+                .font(.system(size: 12, design: .monospaced))
+                .frame(maxWidth: 160)
+            Picker("Role", selection: $selectedRole) {
+                ForEach(SessionRole.allCases) { role in
+                    Text(role.displayName).tag(role)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 200)
+        }
+        Text(selectedRole.roleDescription)
+            .font(.system(size: 10, design: .monospaced))
+            .foregroundStyle(Color(white: 0.4))
+            .fixedSize(horizontal: false, vertical: true)
+
+        Divider().padding(.vertical, 4)
+
+        // Session list
+        HStack {
+            Text("AVAILABLE SESSIONS")
+                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                .foregroundStyle(Color(white: 0.4))
+                .kerning(1)
+            Spacer()
+            Button(action: { Task { await client.listSessions() } }) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 11))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(SmartLightTheme.purple)
+        }
+
+        if client.availableSessions.isEmpty {
+            Text("No active sessions on this Pi.")
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(Color(white: 0.35))
+                .padding(.vertical, 4)
+        } else {
+            ForEach(client.availableSessions) { session in
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(session.sessionName)
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        Text("\(session.clients.count) participant\(session.clients.count == 1 ? "" : "s")")
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(Color(white: 0.38))
+                    }
+                    Spacer()
+                    Button("Join") {
+                        Task { await client.joinSession(id: session.sessionId,
+                                                        clientName: myName, role: selectedRole) }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(SmartLightTheme.purple)
+                    .controlSize(.small)
+                }
+                .padding(.vertical, 2)
+            }
+        }
+
+        Divider().padding(.vertical, 4)
+
+        // Create new session
+        if showCreateSession {
+            HStack(spacing: 8) {
+                TextField("Session name", text: $newSessionName)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 12, design: .monospaced))
+                Button("Create") {
+                    Task {
+                        await client.createSession(sessionName: newSessionName,
+                                                   clientName: myName,
+                                                   role: selectedRole)
+                        newSessionName = ""
+                        showCreateSession = false
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(SmartLightTheme.active)
+                .disabled(newSessionName.trimmingCharacters(in: .whitespaces).isEmpty)
+                Button("Cancel") { showCreateSession = false; newSessionName = "" }
+                    .buttonStyle(.bordered)
+            }
+        } else {
+            Button("+ Create New Session") { showCreateSession = true }
+                .buttonStyle(.bordered)
+                .font(.system(size: 11, design: .monospaced))
+        }
+    }
+
+    @ViewBuilder
+    private func piStatusRow(status: PiStatusPayload) -> some View {
+        Text("PI STATUS")
+            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+            .foregroundStyle(Color(white: 0.4))
+            .kerning(1)
+        HStack(spacing: 16) {
+            labeledValue("Output", status.outputEnabled ? "ON" : "OFF",
+                         color: status.outputEnabled ? SmartLightTheme.active : Color(white: 0.4))
+            labeledValue("FPS", String(format: "%.0f", status.fps))
+            labeledValue("TC", status.timecodeSource)
+            if let cue = status.activeCueName { labeledValue("Cue", cue) }
+        }
+        .font(.system(size: 10, design: .monospaced))
+    }
+
+    private func labeledValue(_ label: String, _ value: String, color: Color = Color(white: 0.65)) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(label)
+                .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                .foregroundStyle(Color(white: 0.38))
+                .kerning(0.8)
+            Text(value)
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundStyle(color)
+        }
+    }
+
+    private func roleColor(_ role: SessionRole) -> Color {
+        switch role {
+        case .primary: SmartLightTheme.active
+        case .control: SmartLightTheme.blue
+        case .editor:  SmartLightTheme.purple
+        }
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+            .foregroundStyle(Color(white: 0.45))
+            .kerning(1.2)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 8)
     }
 }

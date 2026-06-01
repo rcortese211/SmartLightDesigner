@@ -43,6 +43,17 @@ final class AppState {
     var effectsSelectedLayerID: UUID? = nil
     var outputSource: OutputSource = .effects
 
+    // Advanced Pi session features — hidden behind advancedModeEnabled
+    var advancedModeEnabled: Bool = UserDefaults.standard.bool(forKey: "advancedModeEnabled") {
+        didSet { UserDefaults.standard.set(advancedModeEnabled, forKey: "advancedModeEnabled") }
+    }
+    var sessionClient: SessionClient? = nil
+    var isInSession: Bool {
+        guard let c = sessionClient else { return false }
+        if case .inSession = c.state { return true }
+        return false
+    }
+
     // Current open file URL — set on save/open, cleared on new show
     var currentShowURL: URL?
 
@@ -266,6 +277,13 @@ final class AppState {
     }
 
     func toggleOutput() {
+        // In a Pi session the Mac never drives local DMX — relay to Pi instead
+        if isInSession {
+            let cmd = isOutputEnabled ? "output.off" : "output.on"
+            Task { await sessionClient?.sendCommand(cmd) }
+            statusMessage = isOutputEnabled ? "Output off (via Pi)" : "Output on (via Pi)"
+            return
+        }
         isOutputEnabled.toggle()
         if isOutputEnabled {
             rebuildOutputDrivers()
