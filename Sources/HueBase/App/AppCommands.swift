@@ -4,6 +4,16 @@ struct AppCommands: Commands {
     let appState: AppState
 
     var body: some Commands {
+        CommandGroup(replacing: .undoRedo) {
+            Button("Undo") { appState.undo() }
+                .keyboardShortcut("z", modifiers: .command)
+                .disabled(!appState.canUndo)
+
+            Button("Redo") { appState.redo() }
+                .keyboardShortcut("z", modifiers: [.command, .shift])
+                .disabled(!appState.canRedo)
+        }
+
         CommandGroup(replacing: .newItem) {
             Button("New Show") {
                 appState.newShow()

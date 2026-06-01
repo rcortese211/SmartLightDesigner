@@ -7,9 +7,76 @@ import UniformTypeIdentifiers
 final class AppState {
     var show = Show() {
         didSet {
+            if !_suppressUndoRecording && !_loadingAutosave {
+                let now = Date()
+                if now.timeIntervalSince(_lastUndoPushDate) >= Self._undoCoalesceInterval {
+                    _undoStack.append(oldValue)
+                    if _undoStack.count > Self._maxUndoDepth { _undoStack.removeFirst() }
+                    _redoStack.removeAll()
+                    _lastUndoPushDate = now
+                    canUndo = true
+                    canRedo = false
+                }
+            }
             if !_loadingAutosave { scheduleAutosave() }
             engine.update(show: show)
         }
+    }
+
+    // MARK: - Undo / Redo
+
+    /// True when there is at least one state to undo to.
+    private(set) var canUndo: Bool = false
+    /// True when there is at least one state to redo.
+    private(set) var canRedo: Bool = false
+
+    @ObservationIgnored private var _undoStack: [Show] = []
+    @ObservationIgnored private var _redoStack: [Show] = []
+    @ObservationIgnored private var _suppressUndoRecording = false
+    @ObservationIgnored private var _lastUndoPushDate: Date = .distantPast
+    private static let _undoCoalesceInterval: TimeInterval = 0.4
+    private static let _maxUndoDepth = 50
+
+    func undo() {
+        // When a text input is focused and can undo typing, let it handle Cmd+Z.
+        if let fr = NSApp.keyWindow?.firstResponder,
+           (fr is NSTextView || fr is NSTextField),
+           let um = fr.undoManager, um.canUndo { um.undo(); return }
+        guard let prev = _undoStack.popLast() else { return }
+        _redoStack.append(show)
+        if _redoStack.count > Self._maxUndoDepth { _redoStack.removeFirst() }
+        _suppressUndoRecording = true
+        show = prev
+        _suppressUndoRecording = false
+        // Reset coalesce date so the next user action gets its own undo entry.
+        _lastUndoPushDate = Date()
+        canUndo = !_undoStack.isEmpty
+        canRedo = true
+        statusMessage = "Undo"
+    }
+
+    func redo() {
+        if let fr = NSApp.keyWindow?.firstResponder,
+           (fr is NSTextView || fr is NSTextField),
+           let um = fr.undoManager, um.canRedo { um.redo(); return }
+        guard let next = _redoStack.popLast() else { return }
+        _undoStack.append(show)
+        if _undoStack.count > Self._maxUndoDepth { _undoStack.removeFirst() }
+        _suppressUndoRecording = true
+        show = next
+        _suppressUndoRecording = false
+        _lastUndoPushDate = Date()
+        canUndo = true
+        canRedo = !_redoStack.isEmpty
+        statusMessage = "Redo"
+    }
+
+    private func clearUndoHistory() {
+        _undoStack.removeAll()
+        _redoStack.removeAll()
+        _lastUndoPushDate = .distantPast
+        canUndo = false
+        canRedo = false
     }
     var selectedTab: AppTab = .visualizer
     var isOutputEnabled = false
@@ -176,6 +243,7 @@ final class AppState {
         _loadingAutosave = true
         show = saved
         _loadingAutosave = false
+        clearUndoHistory()
     }
 
     func applyTimecodeConfig() {
@@ -329,7 +397,11 @@ final class AppState {
     func openShow(url: URL) -> Bool {
         do {
             let data = try Data(contentsOf: url)
-            show = try JSONDecoder().decode(Show.self, from: data)
+            let loaded = try JSONDecoder().decode(Show.self, from: data)
+            clearUndoHistory()
+            _suppressUndoRecording = true
+            show = loaded
+            _suppressUndoRecording = false
             if show.effectFolders.isEmpty { seedDefaultEffectFolders() }
             currentShowURL = url
             recordRecentFile(url)
@@ -359,7 +431,10 @@ final class AppState {
     }
 
     func newShow() {
+        clearUndoHistory()
+        _suppressUndoRecording = true
         show = Show()
+        _suppressUndoRecording = false
         currentShowURL = nil
         setupDefaultProfiles()
         seedDefaultEffectFolders()
