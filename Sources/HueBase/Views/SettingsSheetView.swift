@@ -228,6 +228,7 @@ struct SessionsSettingsView: View {
                 advancedModeSection
 
                 if appState.advancedModeEnabled {
+                    piSetupSection
                     connectionSection
                     if appState.sessionClient != nil { sessionSection }
                 }
@@ -236,6 +237,7 @@ struct SessionsSettingsView: View {
             .animation(.easeInOut(duration: 0.2), value: appState.advancedModeEnabled)
         }
         .background(SmartLightTheme.background)
+        .sheet(isPresented: $showPiSetup) { PiSetupSheet() }
     }
 
     // MARK: Advanced mode toggle
@@ -261,6 +263,8 @@ struct SessionsSettingsView: View {
             .padding(.bottom, 24)
         }
     }
+
+    @State private var showPiSetup = false
 
     // MARK: Connect to Pi
 
@@ -548,6 +552,34 @@ struct SessionsSettingsView: View {
         }
     }
 
+    // MARK: Pi Setup section
+
+    private var piSetupSection: some View {
+        Group {
+            sectionHeader("Initial Pi Setup")
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Configure a fresh Pi")
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    Text("Given a Pi's IP address and SSH credentials, this will install Swift, clone the repo, compile the server, and install it as a systemd service that starts on boot.")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(Color(white: 0.45))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 16)
+                Button("Setup Pi…") { showPiSetup = true }
+                    .buttonStyle(.borderedProminent)
+                    .tint(SmartLightTheme.purple)
+            }
+            .padding(16)
+            .background(SmartLightTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(RoundedRectangle(cornerRadius: 6).stroke(SmartLightTheme.border, lineWidth: 1))
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
+        }
+    }
+
     private func sectionHeader(_ title: String) -> some View {
         Text(title)
             .font(.system(size: 10, weight: .semibold, design: .monospaced))
@@ -555,5 +587,209 @@ struct SessionsSettingsView: View {
             .kerning(1.2)
             .padding(.horizontal, 20)
             .padding(.bottom, 8)
+    }
+}
+
+// MARK: - Pi Setup Sheet
+
+private struct PiSetupSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var provisioner = PiProvisioner()
+
+    @State private var ip         = ""
+    @State private var username   = "pi"
+    @State private var password   = ""
+    @State private var mode       = "player"
+    @State private var portString = "8080"
+    @State private var repoURL    = ""
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("SETUP PI")
+                    .font(.system(size: 12, weight: .heavy, design: .monospaced))
+                    .foregroundStyle(SmartLightTheme.accentGradient)
+                    .kerning(1.5)
+                Spacer()
+                if !provisioner.isRunning {
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 18))
+                            .foregroundStyle(Color(white: 0.35))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(SmartLightTheme.surfaceHigh)
+            .overlay(alignment: .bottom) { GradientBar(height: 1) }
+
+            if provisioner.stage == .idle {
+                formContent
+            } else {
+                progressContent
+            }
+        }
+        .frame(width: 540, height: 480)
+        .background(SmartLightTheme.background)
+    }
+
+    // MARK: Form
+
+    private var formContent: some View {
+        VStack(spacing: 0) {
+            Form {
+                Section("Pi Connection") {
+                    LabeledContent("IP Address") {
+                        TextField("192.168.1.100", text: $ip)
+                            .font(.system(size: 12, design: .monospaced))
+                    }
+                    LabeledContent("Username") {
+                        TextField("pi", text: $username)
+                            .font(.system(size: 12, design: .monospaced))
+                    }
+                    LabeledContent("Password") {
+                        SecureField("SSH password", text: $password)
+                            .font(.system(size: 12, design: .monospaced))
+                    }
+                }
+                Section("Service") {
+                    LabeledContent("Mode") {
+                        Picker("", selection: $mode) {
+                            Text("Player").tag("player")
+                            Text("Designer").tag("designer")
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 160)
+                    }
+                    LabeledContent("Port") {
+                        TextField("8080", text: $portString)
+                            .font(.system(size: 12, design: .monospaced))
+                            .frame(width: 80)
+                    }
+                    LabeledContent("Repo URL") {
+                        TextField("https://github.com/user/smartlight.git", text: $repoURL)
+                            .font(.system(size: 12, design: .monospaced))
+                    }
+                }
+                Section {
+                    Text("Connects over SSH, installs Swift 5.10 for aarch64, clones the repo, compiles the Pi server, and installs it as a systemd service. Requires 64-bit Raspberry Pi OS. Takes ~15–25 min on a Pi 4.")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                } header: { Text("About") }
+            }
+            .formStyle(.grouped)
+
+            Divider()
+            HStack {
+                Button("Cancel") { dismiss() }
+                    .buttonStyle(.bordered)
+                Spacer()
+                Button("Begin Setup") {
+                    Task {
+                        await provisioner.provision(
+                            ip: ip.trimmingCharacters(in: .whitespaces),
+                            username: username, password: password,
+                            mode: mode, repoURL: repoURL,
+                            port: Int(portString) ?? 8080)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(SmartLightTheme.purple)
+                .disabled(ip.trimmingCharacters(in: .whitespaces).isEmpty ||
+                          password.isEmpty || repoURL.isEmpty)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+        }
+    }
+
+    // MARK: Progress
+
+    private var progressContent: some View {
+        VStack(spacing: 0) {
+            stageBar
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(SmartLightTheme.surfaceHigh)
+                .overlay(alignment: .bottom) { SmartLightTheme.border.frame(height: 1) }
+
+            ScrollViewReader { proxy in
+                ScrollView {
+                    Text(provisioner.log.isEmpty ? "Starting…" : provisioner.log)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(Color(white: 0.7))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
+                        .id("logBottom")
+                }
+                .background(Color.black.opacity(0.4))
+                .onChange(of: provisioner.log) { _, _ in
+                    withAnimation { proxy.scrollTo("logBottom", anchor: .bottom) }
+                }
+            }
+
+            Divider()
+            HStack {
+                switch provisioner.stage {
+                case .done:
+                    Label("Setup complete", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(SmartLightTheme.active)
+                        .font(.system(size: 11, design: .monospaced))
+                    Spacer()
+                    Button("Close") { dismiss() }
+                        .buttonStyle(.borderedProminent)
+                        .tint(SmartLightTheme.active)
+                case .failed(let msg):
+                    Text("✗ \(msg)")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(Color.red.opacity(0.9))
+                        .lineLimit(2)
+                    Spacer()
+                    Button("Close") { dismiss() }
+                        .buttonStyle(.bordered)
+                default:
+                    Text(provisioner.stage.label)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(Color(white: 0.5))
+                    Spacer()
+                    Button("Cancel") { provisioner.cancel() }
+                        .buttonStyle(.bordered)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+        }
+    }
+
+    private var stageBar: some View {
+        let items: [(PiProvisioner.Stage, String)] = [
+            (.connecting,        "SSH"),
+            (.installingDeps,    "Deps"),
+            (.installingSwift,   "Swift"),
+            (.fetchingCode,      "Clone"),
+            (.building,          "Build"),
+            (.installingService, "Service"),
+            (.done,              "Done")
+        ]
+        let current = items.firstIndex(where: { $0.0 == provisioner.stage }) ?? -1
+        return HStack(spacing: 0) {
+            ForEach(items.indices, id: \.self) { i in
+                let done   = i < current
+                let active = i == current
+                VStack(spacing: 4) {
+                    Circle()
+                        .fill(done   ? SmartLightTheme.active :
+                              active ? SmartLightTheme.purple : Color(white: 0.22))
+                        .frame(width: 9, height: 9)
+                    Text(items[i].1)
+                        .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(active ? SmartLightTheme.purple :
+                                         done   ? SmartLightTheme.active : Color(white: 0.28))
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
     }
 }
