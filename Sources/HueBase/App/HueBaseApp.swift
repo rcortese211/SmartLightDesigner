@@ -5,6 +5,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+        // Lock window to splash dimensions until the user makes a choice
+        DispatchQueue.main.async {
+            guard let window = NSApp.mainWindow else { return }
+            let splashSize = NSSize(width: 700, height: 440)
+            window.setContentSize(splashSize)
+            window.minSize = splashSize
+            window.maxSize = splashSize
+            window.center()
+        }
     }
 }
 
@@ -17,9 +26,9 @@ struct HueBaseApp: App {
         WindowGroup {
             ContentView()
                 .environment(appState)
-                .frame(minWidth: 1100, minHeight: 700)
                 .hueBaseTheme()
         }
+        .defaultSize(width: 700, height: 440)
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
         .commands {

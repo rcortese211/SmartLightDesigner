@@ -11,29 +11,16 @@ struct SplashView: View {
 
     var body: some View {
         ZStack {
-            // Dark backdrop over the main window
-            Color.black.opacity(0.72)
-                .ignoresSafeArea()
+            SplashBackground()
 
-            // Fixed-size panel
-            ZStack {
-                SplashBackground()
-
-                HStack(spacing: 0) {
-                    Spacer()
-                    actionCard
-                        .padding(.trailing, 28)
-                        .padding(.vertical, 28)
-                }
+            HStack(spacing: 0) {
+                Spacer()
+                actionCard
+                    .padding(.trailing, 28)
+                    .padding(.vertical, 28)
             }
-            .frame(width: Self.panelW, height: Self.panelH)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16)
-                .stroke(HueBaseTheme.borderBright.opacity(0.45), lineWidth: 1))
-            .shadow(color: Color(red: 0.42, green: 0.18, blue: 0.92).opacity(0.30),
-                    radius: 60, x: 0, y: 6)
-            .shadow(color: .black.opacity(0.55), radius: 28, x: 0, y: 14)
         }
+        .frame(width: Self.panelW, height: Self.panelH)
     }
 
     // MARK: - Action card

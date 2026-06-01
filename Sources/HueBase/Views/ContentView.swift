@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct ContentView: View {
     @Environment(AppState.self) private var appState
@@ -17,6 +18,18 @@ struct ContentView: View {
             }
         }
         .animation(.easeOut(duration: 0.35), value: showSplash)
+        .onChange(of: showSplash) { _, isShowing in
+            guard !isShowing else { return }
+            // After the splash fade completes, unlock and expand to main app size
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.36) {
+                guard let window = NSApp.mainWindow else { return }
+                window.maxSize = NSSize(width: .greatestFiniteMagnitude,
+                                        height: .greatestFiniteMagnitude)
+                window.minSize = NSSize(width: 1100, height: 700)
+                window.setContentSize(NSSize(width: 1280, height: 800))
+                window.center()
+            }
+        }
     }
 
     private var mainInterface: some View {
