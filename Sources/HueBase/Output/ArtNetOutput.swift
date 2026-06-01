@@ -7,6 +7,13 @@ final class ArtNetOutput: DMXOutputDriver {
     private var connection: NWConnection?
     private var sequence: UInt8 = 0
 
+    // Static bytes shared by every ArtDmx packet: "Art-Net\0" + OpCode 0x0050 + protocol version 14
+    private static let packetHeader: [UInt8] = [
+        0x41, 0x72, 0x74, 0x2D, 0x4E, 0x65, 0x74, 0x00,
+        0x00, 0x50,
+        0x00, 0x0E,
+    ]
+
     init(config: ArtNetConfiguration) {
         self.config = config
         self.isEnabled = config.enabled
@@ -37,12 +44,7 @@ final class ArtNetOutput: DMXOutputDriver {
 
     private func buildArtDMXPacket(universe: Int, sequence: UInt8, values: [UInt8]) -> Data {
         var p = Data(capacity: 18 + values.count)
-        // ID "Art-Net\0"
-        p.append(contentsOf: [0x41, 0x72, 0x74, 0x2D, 0x4E, 0x65, 0x74, 0x00])
-        // OpCode ArtDmx = 0x0050, little-endian
-        p.append(0x00); p.append(0x50)
-        // Protocol version = 14, big-endian
-        p.append(0x00); p.append(0x0E)
+        p.append(contentsOf: Self.packetHeader)
         // Sequence
         p.append(sequence)
         // Physical

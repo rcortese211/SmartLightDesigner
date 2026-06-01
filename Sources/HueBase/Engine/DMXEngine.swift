@@ -30,6 +30,12 @@ final class DMXEngine {
     }
     var highlightOverride: HighlightOverride? = nil
 
+    // Persistent render buffers — zeroed and reused each tick to avoid per-frame heap allocation
+    // @ObservationIgnored prevents 44 Hz SwiftUI redraws from internal buffer mutations
+    @ObservationIgnored private var bufA: [Int: [UInt8]] = [:]
+    @ObservationIgnored private var bufB: [Int: [UInt8]] = [:]
+    private static let zerosBuffer: [UInt8] = Array(repeating: 0, count: 512)
+
     init(outputManager: DMXOutputManager) {
         self.outputManager = outputManager
         self.cueEngine = CueEngine()
@@ -56,11 +62,9 @@ final class DMXEngine {
         timer?.invalidate()
         timer = nil
         outputManager.stopAll()
-        // Zero all universes
         for key in universeData.keys {
-            let zeros = Array(repeating: UInt8(0), count: 512)
-            universeData[key] = zeros
-            outputManager.send(universe: key, values: zeros)
+            universeData[key] = Self.zerosBuffer
+            outputManager.send(universe: key, values: Self.zerosBuffer)
         }
     }
 
@@ -70,40 +74,48 @@ final class DMXEngine {
         cueEngine.updateFade(currentTime: Date().timeIntervalSinceReferenceDate)
 
         let aLayers = playbackLayers ?? cueEngine.activeLayers ?? show.layers
-        let newUniverseData: [Int: [UInt8]]
 
         if crossfade <= 0.001 {
-            newUniverseData = renderUniverses(layers: aLayers, show: show, time: time)
+            renderUniverses(layers: aLayers, show: show, time: time, into: &bufA)
+            if let hl = highlightOverride { applyHighlight(hl, to: &bufA, show: show) }
+            universeData = bufA
+            for (universe, values) in bufA { outputManager.send(universe: universe, values: values) }
         } else if crossfade >= 0.999 {
-            newUniverseData = renderUniverses(layers: programBLayers, show: show, time: time)
+            renderUniverses(layers: programBLayers, show: show, time: time, into: &bufA)
+            if let hl = highlightOverride { applyHighlight(hl, to: &bufA, show: show) }
+            universeData = bufA
+            for (universe, values) in bufA { outputManager.send(universe: universe, values: values) }
         } else {
-            let dataA = renderUniverses(layers: aLayers, show: show, time: time)
-            let dataB = renderUniverses(layers: programBLayers, show: show, time: time)
-            let usedUniverses = Set(show.fixtures.map { $0.universe })
+            renderUniverses(layers: aLayers, show: show, time: time, into: &bufA)
+            renderUniverses(layers: programBLayers, show: show, time: time, into: &bufB)
             let fade = crossfade
-            var blended: [Int: [UInt8]] = [:]
-            for u in usedUniverses {
-                let a = dataA[u] ?? Array(repeating: 0, count: 512)
-                let b = dataB[u] ?? Array(repeating: 0, count: 512)
-                blended[u] = zip(a, b).map { UInt8(Double($0) * (1 - fade) + Double($1) * fade) }
+            // Blend A and B in-place: remove each entry so aVal is sole owner (avoids CoW copy)
+            for u in bufA.keys {
+                var aVal = bufA.removeValue(forKey: u)!
+                let b = bufB[u] ?? Self.zerosBuffer
+                for i in 0..<512 {
+                    aVal[i] = UInt8(Double(aVal[i]) * (1 - fade) + Double(b[i]) * fade)
+                }
+                bufA[u] = aVal
             }
-            newUniverseData = blended
-        }
-
-        var finalData = newUniverseData
-        if let hl = highlightOverride {
-            applyHighlight(hl, to: &finalData, show: show)
-        }
-        universeData = finalData
-        for (universe, values) in finalData {
-            outputManager.send(universe: universe, values: values)
+            if let hl = highlightOverride { applyHighlight(hl, to: &bufA, show: show) }
+            universeData = bufA
+            for (universe, values) in bufA { outputManager.send(universe: universe, values: values) }
         }
     }
 
-    private func renderUniverses(layers: [Layer], show: Show, time: Double) -> [Int: [UInt8]] {
+    private func renderUniverses(layers: [Layer], show: Show, time: Double, into data: inout [Int: [UInt8]]) {
         let usedUniverses = Set(show.fixtures.map { $0.universe })
-        var data: [Int: [UInt8]] = [:]
-        for u in usedUniverses { data[u] = Array(repeating: 0, count: 512) }
+        // Reuse existing buffers: remove from dict so the local var is sole owner (no CoW),
+        // zero in place, then put back. New universes get the shared static zeros constant.
+        for u in usedUniverses {
+            if var buf = data.removeValue(forKey: u) {
+                for i in 0..<512 { buf[i] = 0 }
+                data[u] = buf
+            } else {
+                data[u] = Self.zerosBuffer
+            }
+        }
 
         for layer in layers where layer.isEnabled {
             guard let effect = registry.effect(for: layer.effectId) else { continue }
@@ -136,30 +148,37 @@ final class DMXEngine {
                 data[fixture.universe] = universe
             }
         }
-        return data
     }
 
     private func applyHighlight(_ hl: HighlightOverride, to data: inout [Int: [UInt8]], show: Show) {
+        // Group fixtures by universe so each universe buffer is fetched/written back once, not per fixture
+        var fixturesByUniverse: [Int: [Fixture]] = [:]
         for fixture in show.fixtures {
-            guard let profile = show.profile(for: fixture),
-                  var universe = data[fixture.universe] else { continue }
-            let (r, g, b) = hl.selectedIDs.contains(fixture.id) ? hl.highlightRGB : hl.lowlightRGB
-            let base = fixture.startAddress - 1
-            for ch in profile.channels {
-                let idx = base + ch.offset
-                guard idx >= 0 && idx < 512 else { continue }
-                switch ch.name.lowercased() {
-                case "red",   "r": universe[idx] = UInt8(clamp01(r) * 255)
-                case "green", "g": universe[idx] = UInt8(clamp01(g) * 255)
-                case "blue",  "b": universe[idx] = UInt8(clamp01(b) * 255)
-                case "white", "w": universe[idx] = UInt8(clamp01(min(r, g, b)) * 255)
-                case "amber", "a": universe[idx] = UInt8(clamp01((r + g) / 2 * 0.7) * 255)
-                case "dimmer", "intensity", "master":
-                    universe[idx] = UInt8(clamp01(max(r, g, b)) * 255)
-                default: universe[idx] = 0
+            guard data[fixture.universe] != nil else { continue }
+            fixturesByUniverse[fixture.universe, default: []].append(fixture)
+        }
+        for (u, fixtures) in fixturesByUniverse {
+            var universe = data[u]!
+            for fixture in fixtures {
+                guard let profile = show.profile(for: fixture) else { continue }
+                let (r, g, b) = hl.selectedIDs.contains(fixture.id) ? hl.highlightRGB : hl.lowlightRGB
+                let base = fixture.startAddress - 1
+                for ch in profile.channels {
+                    let idx = base + ch.offset
+                    guard idx >= 0 && idx < 512 else { continue }
+                    switch ch.name.lowercased() {
+                    case "red",   "r": universe[idx] = UInt8(clamp01(r) * 255)
+                    case "green", "g": universe[idx] = UInt8(clamp01(g) * 255)
+                    case "blue",  "b": universe[idx] = UInt8(clamp01(b) * 255)
+                    case "white", "w": universe[idx] = UInt8(clamp01(min(r, g, b)) * 255)
+                    case "amber", "a": universe[idx] = UInt8(clamp01((r + g) / 2 * 0.7) * 255)
+                    case "dimmer", "intensity", "master":
+                        universe[idx] = UInt8(clamp01(max(r, g, b)) * 255)
+                    default: universe[idx] = 0
+                    }
                 }
             }
-            data[fixture.universe] = universe
+            data[u] = universe
         }
     }
 
