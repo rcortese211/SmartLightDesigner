@@ -107,18 +107,18 @@ struct OutputToggleButton: View {
         }
         .buttonStyle(.plain)
         .background(
-            appState.isOutputEnabled
-                ? SmartLightTheme.active.opacity(0.12)
-                : SmartLightTheme.surface
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 3)
-                .stroke(
-                    appState.isOutputEnabled ? SmartLightTheme.active : SmartLightTheme.border,
-                    lineWidth: 1
+            RoundedRectangle(cornerRadius: 6)
+                .fill(appState.isOutputEnabled
+                      ? SmartLightTheme.active.opacity(0.12)
+                      : SmartLightTheme.surface)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(
+                            appState.isOutputEnabled ? SmartLightTheme.active : SmartLightTheme.border,
+                            lineWidth: 1
+                        )
                 )
         )
-        .cornerRadius(3)
         .foregroundStyle(
             appState.isOutputEnabled ? SmartLightTheme.active : Color.secondary
         )
