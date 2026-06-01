@@ -32,6 +32,9 @@ struct TimelineView: View {
     // Pinch-to-zoom
     @State private var zoomAnchor: Double? = nil
 
+    // Fade handle drag
+    @State private var fadeHandleDrag: FadeHandleDragState? = nil
+
     // Inline rename
     @State private var renamingClipID: UUID? = nil
     @State private var renameText: String = ""
@@ -444,20 +447,47 @@ struct TimelineView: View {
     private func clipView(clip: TimelineClip, trackIndex: Int) -> some View {
         let color = Color(hue: clip.colorHue, saturation: 0.62, brightness: 0.58)
         let isSelected = selectedClipID == clip.id
+        let clipW    = max(kEdgeZone * 2, CGFloat(clip.duration) * CGFloat(pixelsPerSecond))
+        let fadeInW  = min(CGFloat(clip.fadeInDuration)  * CGFloat(pixelsPerSecond), clipW * 0.5)
+        let fadeOutW = min(CGFloat(clip.fadeOutDuration) * CGFloat(pixelsPerSecond), clipW * 0.5)
+        let h        = kTrackHeight - 4
+        // Positions of fade boundary lines (clamped inside edge zones)
+        let fadeInX  = max(kEdgeZone + 2, fadeInW)
+        let fadeOutX = clipW - max(kEdgeZone + 2, fadeOutW)
+        let showFadeHandles = fadeOutX > fadeInX + 10
 
         return ZStack(alignment: .leading) {
-            // Body
-            RoundedRectangle(cornerRadius: 3)
-                .fill(color.opacity(0.32))
+            // Body fill + border
+            RoundedRectangle(cornerRadius: 3).fill(color.opacity(0.32))
             RoundedRectangle(cornerRadius: 3)
                 .strokeBorder(isSelected ? Color.white.opacity(0.85) : color.opacity(0.8),
                               lineWidth: isSelected ? 1.5 : 1)
 
+            // Fade-in gradient
+            if fadeInW > 1 {
+                HStack(spacing: 0) {
+                    LinearGradient(colors: [.black.opacity(0.55), .clear],
+                                   startPoint: .leading, endPoint: .trailing)
+                        .frame(width: fadeInW)
+                    Spacer()
+                }
+                .allowsHitTesting(false)
+            }
+
+            // Fade-out gradient
+            if fadeOutW > 1 {
+                HStack(spacing: 0) {
+                    Spacer()
+                    LinearGradient(colors: [.clear, .black.opacity(0.55)],
+                                   startPoint: .leading, endPoint: .trailing)
+                        .frame(width: fadeOutW)
+                }
+                .allowsHitTesting(false)
+            }
+
             // Top colour bar
             VStack(spacing: 0) {
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(color)
-                    .frame(height: 3)
+                RoundedRectangle(cornerRadius: 2).fill(color).frame(height: 3)
                 Spacer()
             }
 
@@ -484,22 +514,65 @@ struct TimelineView: View {
                 .padding(.top, 4)
             }
 
-            // Left resize handle
-            HStack {
-                Color.white.opacity(0.0)
-                    .frame(width: kEdgeZone)
-                    .contentShape(Rectangle())
-                    .gesture(resizeDragGesture(clip: clip, trackIndex: trackIndex, edge: .left))
+            // Left resize handle — visible grip strip
+            HStack(spacing: 0) {
+                ZStack {
+                    Color(white: 1, opacity: 0.12)
+                    VStack(spacing: 2) {
+                        ForEach(0..<3, id: \.self) { _ in
+                            Capsule().fill(Color.white.opacity(0.55)).frame(width: 1.5, height: 7)
+                        }
+                    }
+                }
+                .frame(width: kEdgeZone)
+                .contentShape(Rectangle())
+                .gesture(resizeDragGesture(clip: clip, trackIndex: trackIndex, edge: .left))
+                .onHover { inside in if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() } }
                 Spacer()
             }
 
-            // Right resize handle
-            HStack {
+            // Right resize handle — visible grip strip
+            HStack(spacing: 0) {
                 Spacer()
-                Color.white.opacity(0.0)
-                    .frame(width: kEdgeZone)
+                ZStack {
+                    Color(white: 1, opacity: 0.12)
+                    VStack(spacing: 2) {
+                        ForEach(0..<3, id: \.self) { _ in
+                            Capsule().fill(Color.white.opacity(0.55)).frame(width: 1.5, height: 7)
+                        }
+                    }
+                }
+                .frame(width: kEdgeZone)
+                .contentShape(Rectangle())
+                .gesture(resizeDragGesture(clip: clip, trackIndex: trackIndex, edge: .right))
+                .onHover { inside in if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() } }
+            }
+
+            // Fade handles — only when clip is wide enough to fit both
+            if showFadeHandles {
+                // Fade-in: orange marker line + hit zone
+                Color.orange.opacity(0.85)
+                    .frame(width: 2, height: h - 6)
+                    .offset(x: fadeInX - 1)
+                    .allowsHitTesting(false)
+                Color.clear
+                    .frame(width: 16, height: h)
                     .contentShape(Rectangle())
-                    .gesture(resizeDragGesture(clip: clip, trackIndex: trackIndex, edge: .right))
+                    .offset(x: fadeInX - 8)
+                    .gesture(fadeDragGesture(clip: clip, trackIndex: trackIndex, isFadeIn: true))
+                    .onHover { inside in if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() } }
+
+                // Fade-out: orange marker line + hit zone
+                Color.orange.opacity(0.85)
+                    .frame(width: 2, height: h - 6)
+                    .offset(x: fadeOutX - 1)
+                    .allowsHitTesting(false)
+                Color.clear
+                    .frame(width: 16, height: h)
+                    .contentShape(Rectangle())
+                    .offset(x: fadeOutX - 8)
+                    .gesture(fadeDragGesture(clip: clip, trackIndex: trackIndex, isFadeIn: false))
+                    .onHover { inside in if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() } }
             }
         }
         .onTapGesture { selectedClipID = (selectedClipID == clip.id ? nil : clip.id) }
@@ -720,6 +793,31 @@ struct TimelineView: View {
             }
     }
 
+    private func fadeDragGesture(clip: TimelineClip, trackIndex: Int, isFadeIn: Bool) -> some Gesture {
+        DragGesture(minimumDistance: 1)
+            .onChanged { v in
+                if fadeHandleDrag == nil {
+                    let anchor = isFadeIn ? clip.fadeInDuration : clip.fadeOutDuration
+                    fadeHandleDrag = FadeHandleDragState(
+                        clipID: clip.id, trackIndex: trackIndex,
+                        isFadeIn: isFadeIn, anchorDuration: anchor
+                    )
+                }
+                guard let ds = fadeHandleDrag, ds.clipID == clip.id else { return }
+                let delta = Double(v.translation.width) / pixelsPerSecond
+                let maxFade = clip.duration * 0.5
+                if isFadeIn {
+                    let newFade = max(0, min(maxFade, ds.anchorDuration + delta))
+                    updateClip(id: clip.id, trackIndex: trackIndex) { $0.fadeInDuration = newFade }
+                } else {
+                    // Fade-out handle moves opposite: drag left = longer fade
+                    let newFade = max(0, min(maxFade, ds.anchorDuration - delta))
+                    updateClip(id: clip.id, trackIndex: trackIndex) { $0.fadeOutDuration = newFade }
+                }
+            }
+            .onEnded { _ in fadeHandleDrag = nil }
+    }
+
     // MARK: - Data mutations
 
     private func updateClip(id: UUID, trackIndex: Int, mutation: (inout TimelineClip) -> Void) {
@@ -756,14 +854,14 @@ struct TimelineView: View {
         guard trackIndex < appState.show.timeline.tracks.count else { return }
         var track = appState.show.timeline.tracks[trackIndex]
         track.clips.sort { $0.startTime < $1.startTime }
-        for i in 0..<track.clips.count {
-            track.clips[i].fadeInDuration = 0
-            track.clips[i].fadeOutDuration = 0
-        }
         for i in 0..<max(0, track.clips.count - 1) {
             let overlap = max(0, track.clips[i].endTime - track.clips[i + 1].startTime)
-            track.clips[i].fadeOutDuration = overlap
-            track.clips[i + 1].fadeInDuration = overlap
+            if overlap > 0 {
+                // Overlapping clips: auto-set fades to match the overlap region
+                track.clips[i].fadeOutDuration = overlap
+                track.clips[i + 1].fadeInDuration = overlap
+            }
+            // Non-overlapping: leave fade values as-is (preserve manual handle positions)
         }
         appState.show.timeline.tracks[trackIndex] = track
     }
@@ -856,6 +954,13 @@ private struct ClipDragState {
     let grabOffsetX: Double
 
     enum Mode { case move, resizeLeft, resizeRight }
+}
+
+private struct FadeHandleDragState {
+    let clipID: UUID
+    let trackIndex: Int
+    let isFadeIn: Bool
+    let anchorDuration: Double
 }
 
 // MARK: - Double-click to add clip extension
