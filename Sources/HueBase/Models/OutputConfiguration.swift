@@ -4,6 +4,7 @@ struct UniverseMapping: Codable, Identifiable, Hashable {
     let id: UUID
     var localUniverse: Int      // internal universe index (0-based)
     var outputUniverse: Int     // universe sent on the wire
+    var unicastIP: String = ""  // sACN per-universe unicast destination; empty = multicast/broadcast
 }
 
 struct ArtNetConfiguration: Codable {
@@ -25,7 +26,6 @@ struct SACNConfiguration: Codable {
         UniverseMapping(id: UUID(), localUniverse: 0, outputUniverse: 1)
     ]
     var useMulticast: Bool = true
-    var unicastIP: String = ""   // used when useMulticast == false
 }
 
 struct USBDMXConfiguration: Codable {

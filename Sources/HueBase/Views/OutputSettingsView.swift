@@ -13,6 +13,7 @@ struct OutputSettingsView: View {
     var statusIsError: Binding<Bool>?
     @State private var huePairingState: HuePairingState = .idle
     @State private var hueDiscoveryStatus: String = ""
+    @State private var applyConfirmation: String = ""
 
     var body: some View {
         TabView {
@@ -40,31 +41,30 @@ struct OutputSettingsView: View {
         return Form {
             Toggle("Enable Art-Net Output", isOn: $state.show.artNet.enabled)
                 .onChange(of: state.show.artNet.enabled) { _, _ in rebuildOutputDrivers() }
-            if appState.show.artNet.enabled {
-                Section("Network") {
-                    LabeledContent("Target IP") {
-                        TextField("255.255.255.255", text: $state.show.artNet.targetIP)
-                            .textFieldStyle(.roundedBorder)
-                    }
-                    LabeledContent("Port") {
-                        TextField("6454", value: $state.show.artNet.port, formatter: portFormatter)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 80)
-                    }
+            Section("Network") {
+                LabeledContent("Target IP") {
+                    TextField("255.255.255.255", text: $state.show.artNet.targetIP)
+                        .textFieldStyle(.roundedBorder)
                 }
-                Section("Universe Mapping") {
-                    ForEach($state.show.artNet.universeMappings) { $mapping in
-                        universeMappingRow(local: $mapping.localUniverse,
-                                          output: $mapping.outputUniverse,
-                                          outputLabel: "Art-Net") {
-                            state.show.artNet.universeMappings.removeAll { $0.id == mapping.id }
-                        }
-                    }
-                    Button { addArtNetMapping() } label: {
-                        Label("Add Mapping", systemImage: "plus")
-                    }
+                LabeledContent("Port") {
+                    TextField("6454", value: $state.show.artNet.port, formatter: portFormatter)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 80)
                 }
             }
+            Section("Universe Mapping") {
+                ForEach($state.show.artNet.universeMappings) { $mapping in
+                    universeMappingRow(local: $mapping.localUniverse,
+                                      output: $mapping.outputUniverse,
+                                      outputLabel: "Art-Net") {
+                        state.show.artNet.universeMappings.removeAll { $0.id == mapping.id }
+                    }
+                }
+                Button { addArtNetMapping() } label: {
+                    Label("Add Mapping", systemImage: "plus")
+                }
+            }
+            applySection("Art-Net") { rebuildOutputDrivers() }
         }
         .formStyle(.grouped)
     }
@@ -74,70 +74,116 @@ struct OutputSettingsView: View {
         return Form {
             Toggle("Enable sACN Output", isOn: $state.show.sACN.enabled)
                 .onChange(of: state.show.sACN.enabled) { _, _ in rebuildOutputDrivers() }
-            if appState.show.sACN.enabled {
-                Section("Settings") {
-                    LabeledContent("Source Name") {
-                        TextField("SmartLight", text: $state.show.sACN.sourceName)
-                            .textFieldStyle(.roundedBorder)
-                    }
-                    LabeledContent("Priority") {
-                        Stepper("\(state.show.sACN.priority)", value: $state.show.sACN.priority,
-                                in: 0...200)
-                    }
-                    Toggle("Use Multicast", isOn: $state.show.sACN.useMulticast)
-                        .onChange(of: state.show.sACN.useMulticast) { _, _ in rebuildOutputDrivers() }
-                    if !state.show.sACN.useMulticast {
-                        LabeledContent("Unicast Destination") {
-                            TextField("192.168.1.100", text: $state.show.sACN.unicastIP)
-                                .textFieldStyle(.roundedBorder)
-                        }
-                        Text("All universes will be unicast to this IP. Toggle output off/on after changing the address.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+            Section("Settings") {
+                LabeledContent("Source Name") {
+                    TextField("SmartLight", text: $state.show.sACN.sourceName)
+                        .textFieldStyle(.roundedBorder)
                 }
-                Section("Universe Mapping") {
-                    ForEach($state.show.sACN.universeMappings) { $mapping in
-                        universeMappingRow(local: $mapping.localUniverse,
-                                          output: $mapping.outputUniverse,
-                                          outputLabel: "sACN") {
-                            state.show.sACN.universeMappings.removeAll { $0.id == mapping.id }
-                        }
-                    }
-                    Button { addSACNMapping() } label: {
-                        Label("Add Mapping", systemImage: "plus")
-                    }
+                LabeledContent("Priority") {
+                    Stepper("\(state.show.sACN.priority)", value: $state.show.sACN.priority,
+                            in: 0...200)
+                }
+                Toggle("Use Multicast", isOn: $state.show.sACN.useMulticast)
+                if !state.show.sACN.useMulticast {
+                    Text("Enter a unicast destination IP per universe below.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
+            Section("Universe Mapping") {
+                ForEach($state.show.sACN.universeMappings) { $mapping in
+                    universeMappingRow(
+                        local: $mapping.localUniverse,
+                        output: $mapping.outputUniverse,
+                        outputLabel: "sACN",
+                        unicastIP: $mapping.unicastIP,
+                        showUnicastField: !state.show.sACN.useMulticast
+                    ) {
+                        state.show.sACN.universeMappings.removeAll { $0.id == mapping.id }
+                    }
+                }
+                Button { addSACNMapping() } label: {
+                    Label("Add Mapping", systemImage: "plus")
+                }
+            }
+            applySection("sACN") { rebuildOutputDrivers() }
         }
         .formStyle(.grouped)
     }
 
-    // Shared row: [Internal ____] → [Label ____] [trash]
-    private func universeMappingRow(local: Binding<Int>, output: Binding<Int>,
-                                    outputLabel: String, onDelete: @escaping () -> Void) -> some View {
-        HStack(spacing: 6) {
-            Text("Internal")
-                .foregroundStyle(.secondary)
-                .fixedSize()
-            TextField("", value: local, formatter: universeFormatter)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 54)
-            Image(systemName: "arrow.right")
-                .foregroundStyle(.secondary)
-                .font(.system(size: 11))
-            Text(outputLabel)
-                .foregroundStyle(.secondary)
-                .fixedSize()
-            TextField("", value: output, formatter: universeFormatter)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 54)
-            Spacer()
-            Button(action: onDelete) {
-                Image(systemName: "trash")
-                    .foregroundStyle(Color.red.opacity(0.7))
+    // Shared mapping row: [Internal ____] → [Label ____] [trash]
+    // When showUnicastField is true an indented IP field appears below the numbers row.
+    private func universeMappingRow(
+        local: Binding<Int>,
+        output: Binding<Int>,
+        outputLabel: String,
+        unicastIP: Binding<String>? = nil,
+        showUnicastField: Bool = false,
+        onDelete: @escaping () -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Text("Internal")
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+                TextField("", value: local, formatter: universeFormatter)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 54)
+                Image(systemName: "arrow.right")
+                    .foregroundStyle(.secondary)
+                    .font(.system(size: 11))
+                Text(outputLabel)
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+                TextField("", value: output, formatter: universeFormatter)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 54)
+                Spacer()
+                Button(action: onDelete) {
+                    Image(systemName: "trash")
+                        .foregroundStyle(Color.red.opacity(0.7))
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+            if showUnicastField, let ip = unicastIP {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.turn.down.right")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                    Text("Unicast to:")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize()
+                    TextField("192.168.1.100", text: ip)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 11, design: .monospaced))
+                }
+                .padding(.leading, 16)
+            }
+        }
+    }
+
+    // Apply button row with a timed confirmation label
+    @ViewBuilder
+    private func applySection(_ label: String, action: @escaping () -> Void) -> some View {
+        Section {
+            HStack(spacing: 12) {
+                Button("Apply \(label) Settings") {
+                    action()
+                    applyConfirmation = "\(label) applied ✓"
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .seconds(3))
+                        if applyConfirmation == "\(label) applied ✓" { applyConfirmation = "" }
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                if !applyConfirmation.isEmpty {
+                    Label(applyConfirmation, systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(Color.green)
+                        .font(.system(size: 12))
+                        .transition(.opacity)
+                }
+            }
         }
     }
 
@@ -182,6 +228,7 @@ struct OutputSettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            applySection("USB DMX") { rebuildOutputDrivers() }
         }
         .formStyle(.grouped)
     }
@@ -216,6 +263,12 @@ struct OutputSettingsView: View {
                     oscCommandRow("/sld/back", desc: "Return to previous cue")
                     oscCommandRow("/sld/output/toggle", desc: "Toggle output on/off")
                     oscCommandRow("/sld/layer/opacity i f", desc: "Set layer opacity (index 0-based, value 0.0-1.0)")
+                }
+            }
+            applySection("OSC") {
+                if appState.show.osc.enabled {
+                    appState.oscServer.stop()
+                    appState.oscServer.start(port: appState.show.osc.listenPort)
                 }
             }
         }
@@ -362,6 +415,7 @@ struct OutputSettingsView: View {
                         }
                     } header: { Text("Light Mappings (Fixture → Hue Light)") }
                 }
+                applySection("Hue") { rebuildOutputDrivers() }
             }
             .formStyle(.grouped)
         }

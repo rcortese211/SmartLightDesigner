@@ -25,11 +25,11 @@ final class SACNOutput: DMXOutputDriver {
     func send(universe: Int, values: [UInt8]) {
         guard isEnabled else { return }
 
-        let outputUniverse = config.universeMappings
-            .first(where: { $0.localUniverse == universe })?.outputUniverse ?? universe
+        let mapping = config.universeMappings.first(where: { $0.localUniverse == universe })
+        let outputUniverse = mapping?.outputUniverse ?? universe
 
         if connections[outputUniverse] == nil {
-            connections[outputUniverse] = makeConnection(universe: outputUniverse)
+            connections[outputUniverse] = makeConnection(universe: outputUniverse, mapping: mapping)
         }
         guard let conn = connections[outputUniverse] else { return }
 
@@ -38,22 +38,18 @@ final class SACNOutput: DMXOutputDriver {
         conn.send(content: packet, completion: .idempotent)
     }
 
-    private func makeConnection(universe: Int) -> NWConnection {
+    private func makeConnection(universe: Int, mapping: UniverseMapping?) -> NWConnection {
+        let port = NWEndpoint.Port(rawValue: config.port) ?? 5568
         let endpoint: NWEndpoint
         if config.useMulticast {
             // sACN multicast: 239.255.X.Y where X = universe high byte, Y = universe low byte
             let hi = (universe >> 8) & 0xFF
             let lo = universe & 0xFF
-            let ip = "239.255.\(hi).\(lo)"
-            let host = NWEndpoint.Host(ip)
-            let port = NWEndpoint.Port(rawValue: config.port) ?? 5568
-            endpoint = .hostPort(host: host, port: port)
+            endpoint = .hostPort(host: NWEndpoint.Host("239.255.\(hi).\(lo)"), port: port)
         } else {
-            let ip = config.unicastIP.trimmingCharacters(in: .whitespaces).isEmpty
-                ? "255.255.255.255" : config.unicastIP
-            let host = NWEndpoint.Host(ip)
-            let port = NWEndpoint.Port(rawValue: config.port) ?? 5568
-            endpoint = .hostPort(host: host, port: port)
+            let ip = mapping?.unicastIP.trimmingCharacters(in: .whitespaces) ?? ""
+            let dest = ip.isEmpty ? "255.255.255.255" : ip
+            endpoint = .hostPort(host: NWEndpoint.Host(dest), port: port)
         }
         let conn = NWConnection(to: endpoint, using: .udp)
         conn.start(queue: .global(qos: .userInteractive))
