@@ -31,6 +31,13 @@ struct TimelineClip: Codable, Identifiable {
     var endTime: Double { startTime + duration }
 }
 
+struct TimelineMarker: Codable, Identifiable {
+    var id: UUID = UUID()
+    var time: Double        // seconds from timeline start
+    var label: String
+    var colorHue: Double = 0.58
+}
+
 struct TimelineTrack: Codable, Identifiable {
     var id: UUID = UUID()
     var name: String
@@ -56,6 +63,7 @@ struct Timeline: Codable {
     var audioClip: AudioClip? = nil
     var loop: Bool = false
     var bpm: Double = 120.0
+    var markers: [TimelineMarker] = []
 }
 
 // MARK: - Palette → Timeline drag-and-drop

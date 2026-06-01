@@ -57,6 +57,11 @@ struct TimelineView: View {
     // Playhead scrub
     @State private var isScrubbing = false
 
+    // Marker state
+    @State private var editingMarkerID: UUID? = nil
+    @State private var markerDragID: UUID? = nil
+    @State private var markerDragAnchorTime: Double = 0
+
     var body: some View {
         VStack(spacing: 0) {
             transportBar
@@ -84,6 +89,11 @@ struct TimelineView: View {
             .keyboardShortcut(.space, modifiers: [])
             .opacity(0)
             .allowsHitTesting(false)
+
+            Button("") { addMarkerAtPlayhead() }
+                .keyboardShortcut("m", modifiers: [])
+                .opacity(0)
+                .allowsHitTesting(false)
         }
         .onDisappear {
             if appState.timelineEngine.isPlaying { appState.timelineEngine.pause() }
@@ -326,6 +336,7 @@ struct TimelineView: View {
                         .frame(height: 1, alignment: .topLeading)
                         .allowsHitTesting(false)
 
+                        markerOverlay
                         playheadOverlay
                     }
                     .frame(minWidth: totalWidth)
@@ -803,6 +814,115 @@ struct TimelineView: View {
         .allowsHitTesting(false)
     }
 
+    // MARK: - Markers
+
+    private var markerOverlay: some View {
+        ZStack(alignment: .topLeading) {
+            ForEach(appState.show.timeline.markers) { marker in
+                let x = CGFloat(marker.time * pixelsPerSecond)
+                let color = Color(hue: marker.colorHue, saturation: 0.85, brightness: 0.95)
+
+                // Full-height tinted line (non-interactive)
+                Rectangle()
+                    .fill(color.opacity(0.5))
+                    .frame(width: 1)
+                    .offset(x: x)
+                    .allowsHitTesting(false)
+
+                // Interactive flag in ruler area
+                markerFlagView(marker: marker)
+                    .offset(x: x)
+            }
+        }
+    }
+
+    private func markerFlagView(marker: TimelineMarker) -> some View {
+        let color = Color(hue: marker.colorHue, saturation: 0.85, brightness: 0.95)
+        return HStack(spacing: 3) {
+            Image(systemName: "arrowtriangle.down.fill")
+                .font(.system(size: 5))
+                .foregroundStyle(Color.black.opacity(0.55))
+            Text(marker.label)
+                .font(.system(size: 7.5, weight: .semibold, design: .monospaced))
+                .foregroundStyle(Color.black)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
+        .background(color)
+        .clipShape(RoundedRectangle(cornerRadius: 2))
+        .padding(.top, 3)
+        .frame(height: kRulerHeight, alignment: .top)
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) {
+            editingMarkerID = editingMarkerID == marker.id ? nil : marker.id
+        }
+        .gesture(markerDragGesture(marker: marker))
+        .contextMenu {
+            Button("Edit Marker…") { editingMarkerID = marker.id }
+            Button("Delete Marker", role: .destructive) {
+                appState.show.timeline.markers.removeAll { $0.id == marker.id }
+                if editingMarkerID == marker.id { editingMarkerID = nil }
+            }
+        }
+        .popover(
+            isPresented: Binding(
+                get: { editingMarkerID == marker.id },
+                set: { if !$0 { editingMarkerID = nil } }
+            ),
+            arrowEdge: .bottom
+        ) {
+            MarkerEditPopover(
+                marker: markerBinding(id: marker.id),
+                onDelete: {
+                    appState.show.timeline.markers.removeAll { $0.id == marker.id }
+                    editingMarkerID = nil
+                }
+            )
+        }
+    }
+
+    private func markerDragGesture(marker: TimelineMarker) -> some Gesture {
+        DragGesture(minimumDistance: 3)
+            .onChanged { v in
+                if markerDragID == nil {
+                    markerDragID = marker.id
+                    markerDragAnchorTime = marker.time
+                }
+                guard markerDragID == marker.id else { return }
+                let newTime = max(0, markerDragAnchorTime + Double(v.translation.width) / pixelsPerSecond)
+                if let idx = appState.show.timeline.markers.firstIndex(where: { $0.id == marker.id }) {
+                    appState.show.timeline.markers[idx].time = newTime
+                }
+            }
+            .onEnded { _ in markerDragID = nil }
+    }
+
+    private func addMarkerAtPlayhead() {
+        let t = appState.timelineEngine.playheadTime
+        let n = appState.show.timeline.markers.count + 1
+        // Cycle through a set of visually distinct hues
+        let hues: [Double] = [0.58, 0.14, 0.00, 0.37, 0.75, 0.07, 0.87]
+        let hue = hues[(n - 1) % hues.count]
+        appState.show.timeline.markers.append(
+            TimelineMarker(time: t, label: "Marker \(n)", colorHue: hue)
+        )
+    }
+
+    private func markerBinding(id: UUID) -> Binding<TimelineMarker> {
+        Binding(
+            get: {
+                self.appState.show.timeline.markers.first(where: { $0.id == id })
+                    ?? TimelineMarker(id: id, time: 0, label: "")
+            },
+            set: { newValue in
+                if let idx = self.appState.show.timeline.markers.firstIndex(where: { $0.id == id }) {
+                    self.appState.show.timeline.markers[idx] = newValue
+                }
+            }
+        )
+    }
+
     // MARK: - Gestures
 
     private func clipMoveDragGesture(clip: TimelineClip, trackIndex: Int) -> some Gesture {
@@ -1144,6 +1264,109 @@ private struct FadeHandleDragState {
     let trackIndex: Int
     let isFadeIn: Bool
     let anchorDuration: Double
+}
+
+// MARK: - Marker edit popover
+
+private struct MarkerEditPopover: View {
+    @Binding var marker: TimelineMarker
+    var onDelete: () -> Void
+
+    @State private var labelText = ""
+    @State private var timeMinutes = 0
+    @State private var timeSeconds = 0
+    @State private var timeTenths  = 0
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("MARKER")
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .foregroundStyle(Color(white: 0.4))
+
+            // Label
+            TextField("Label", text: $labelText)
+                .textFieldStyle(.roundedBorder)
+                .font(.system(size: 12))
+                .onChange(of: labelText) { _, new in
+                    let t = new.trimmingCharacters(in: .whitespaces)
+                    if !t.isEmpty { marker.label = t }
+                }
+
+            // Exact timestamp
+            LabeledContent("Time") {
+                HStack(spacing: 3) {
+                    TextField("", value: $timeMinutes, formatter: minutesFmt)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 36)
+                        .onChange(of: timeMinutes) { _, _ in commitTime() }
+                    Text(":").foregroundStyle(.secondary)
+                    TextField("", value: $timeSeconds, formatter: secondsFmt)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 36)
+                        .onChange(of: timeSeconds) { _, _ in commitTime() }
+                    Text(".").foregroundStyle(.secondary)
+                    TextField("", value: $timeTenths, formatter: tenthsFmt)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 28)
+                        .onChange(of: timeTenths) { _, _ in commitTime() }
+                }
+                .font(.system(size: 11, design: .monospaced))
+            }
+
+            // Color swatches
+            Text("COLOR")
+                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                .foregroundStyle(Color(white: 0.4))
+            LazyVGrid(columns: Array(repeating: .init(.fixed(22)), count: 6), spacing: 5) {
+                ForEach(kColorPresets, id: \.name) { preset in
+                    Circle()
+                        .fill(Color(hue: preset.hue, saturation: 0.85, brightness: 0.95))
+                        .frame(width: 18, height: 18)
+                        .overlay(
+                            Circle().stroke(
+                                abs(preset.hue - marker.colorHue) < 0.03 ? Color.white : Color.clear,
+                                lineWidth: 2
+                            )
+                        )
+                        .onTapGesture { marker.colorHue = preset.hue }
+                }
+            }
+
+            Divider()
+
+            Button("Delete Marker", role: .destructive, action: onDelete)
+                .buttonStyle(.borderedProminent)
+                .tint(Color.red.opacity(0.75))
+                .controlSize(.small)
+        }
+        .padding(14)
+        .frame(width: 235)
+        .background(SmartLightTheme.surface)
+        .onAppear {
+            labelText = marker.label
+            let t = marker.time
+            timeMinutes = Int(t) / 60
+            timeSeconds = Int(t) % 60
+            timeTenths  = Int(t.truncatingRemainder(dividingBy: 1) * 10)
+        }
+    }
+
+    private func commitTime() {
+        let t = Double(max(0, timeMinutes)) * 60
+            + Double(max(0, min(59, timeSeconds)))
+            + Double(max(0, min(9,  timeTenths))) / 10.0
+        marker.time = max(0, t)
+    }
+
+    private var minutesFmt: NumberFormatter {
+        let f = NumberFormatter(); f.allowsFloats = false; f.minimum = 0; return f
+    }
+    private var secondsFmt: NumberFormatter {
+        let f = NumberFormatter(); f.allowsFloats = false; f.minimum = 0; f.maximum = 59; return f
+    }
+    private var tenthsFmt: NumberFormatter {
+        let f = NumberFormatter(); f.allowsFloats = false; f.minimum = 0; f.maximum = 9; return f
+    }
 }
 
 // MARK: - Double-click to add clip extension
