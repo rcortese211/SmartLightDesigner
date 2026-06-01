@@ -78,6 +78,26 @@ final class DMXEngine {
         let time = Date().timeIntervalSinceReferenceDate - startTime
         cueEngine.updateFade(currentTime: Date().timeIntervalSinceReferenceDate)
 
+        // Cue crossfade: render source and target independently then blend at the buffer level.
+        // This gives a true DMX-level crossfade regardless of layer opacity settings.
+        if outputSource == .cues && cueEngine.isFading {
+            let t = cueEngine.fadeProgress
+            renderUniverses(layers: cueEngine.fadeSourceLayers, show: show, time: time, into: &bufA)
+            renderUniverses(layers: cueEngine.fadeTargetLayers, show: show, time: time, into: &bufB)
+            for u in bufA.keys {
+                var src = bufA.removeValue(forKey: u)!
+                let dst = bufB[u] ?? Self.zerosBuffer
+                for i in 0..<512 {
+                    src[i] = UInt8(Double(src[i]) * (1 - t) + Double(dst[i]) * t)
+                }
+                bufA[u] = src
+            }
+            if let hl = highlightOverride { applyHighlight(hl, to: &bufA, show: show) }
+            universeData = bufA
+            for (universe, values) in bufA { outputManager.send(universe: universe, values: values) }
+            return
+        }
+
         let aLayers: [Layer]
         switch outputSource {
         case .effects:
@@ -102,7 +122,6 @@ final class DMXEngine {
             renderUniverses(layers: aLayers, show: show, time: time, into: &bufA)
             renderUniverses(layers: programBLayers, show: show, time: time, into: &bufB)
             let fade = crossfade
-            // Blend A and B in-place: remove each entry so aVal is sole owner (avoids CoW copy)
             for u in bufA.keys {
                 var aVal = bufA.removeValue(forKey: u)!
                 let b = bufB[u] ?? Self.zerosBuffer

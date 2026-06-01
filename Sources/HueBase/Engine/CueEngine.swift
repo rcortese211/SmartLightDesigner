@@ -7,12 +7,13 @@ final class CueEngine {
     var effectFolders: [EffectFolder] = []
     var currentIndex: Int = -1
 
-    // Active layers fed into DMXEngine each tick.
-    // nil means "use show.layers directly" (freerun mode).
+    // Active layers fed into DMXEngine each tick (nil = freerun mode).
+    // During a fade this holds the SOURCE state; DMXEngine blends source→target at the buffer level.
     private(set) var activeLayers: [Layer]? = nil
 
-    private var fadeStartLayers: [Layer] = []
-    private var fadeTargetLayers: [Layer] = []
+    // Exposed so DMXEngine can render both sides of a crossfade independently.
+    private(set) var fadeSourceLayers: [Layer] = []
+    private(set) var fadeTargetLayers: [Layer] = []
     private(set) var fadeStartTime: Double = 0
     private(set) var fadeDuration: Double = 0
     private(set) var isFading: Bool = false
@@ -20,6 +21,12 @@ final class CueEngine {
 
     /// Wall-clock date when the current fade began. Used by UI progress indicators.
     var fadeStartDate: Date { Date(timeIntervalSinceReferenceDate: fadeStartTime) }
+
+    /// 0 = start of fade, 1 = complete. Computed from real time so it's always fresh.
+    var fadeProgress: Double {
+        guard isFading, fadeDuration > 0 else { return 0 }
+        return min((CACurrentMediaTime() - fadeStartTime) / fadeDuration, 1.0)
+    }
 
     var currentCue: Cue? {
         guard currentIndex >= 0 && currentIndex < cues.count else { return nil }
@@ -56,7 +63,7 @@ final class CueEngine {
 
         let cue = cues[index]
 
-        // Resolve target layers: palette ref wins over the snapshot if the palette still exists
+        // Resolve target layers: palette ref wins over snapshot if the palette still exists
         let targetLayers: [Layer]
         if let ref = cue.paletteRef,
            let folder = effectFolders.first(where: { $0.id == ref.folderID }),
@@ -66,7 +73,8 @@ final class CueEngine {
             targetLayers = cue.layerSnapshot
         }
 
-        fadeStartLayers = activeLayers ?? targetLayers
+        // Source is whatever was last rendered (or the new target if this is the first cue)
+        fadeSourceLayers = activeLayers ?? targetLayers
         fadeTargetLayers = targetLayers
         fadeDuration = cue.fadeInTime
         fadeStartTime = CACurrentMediaTime()
@@ -74,8 +82,11 @@ final class CueEngine {
         currentIndex = index
 
         if !isFading {
-            activeLayers = fadeTargetLayers
+            // Instant snap: no crossfade needed
+            activeLayers = targetLayers
         }
+        // When fading, activeLayers keeps the source state until the fade is done.
+        // DMXEngine renders both fadeSourceLayers and fadeTargetLayers and blends them.
 
         if let followTime = cue.followTime, followTime > 0 {
             followTimer = Timer.scheduledTimer(withTimeInterval: followTime, repeats: false) { [weak self] _ in
@@ -84,30 +95,14 @@ final class CueEngine {
         }
     }
 
+    /// Called every DMX tick. Marks the fade complete when the time has elapsed.
+    /// Actual blending is done at the DMX buffer level in DMXEngine.
     func updateFade(currentTime: Double) {
         guard isFading, fadeDuration > 0 else { return }
-        let elapsed = currentTime - fadeStartTime
-        let t = min(elapsed / fadeDuration, 1.0)
-
-        if t >= 1.0 {
+        if currentTime - fadeStartTime >= fadeDuration {
             activeLayers = fadeTargetLayers
             isFading = false
-            return
         }
-
-        // Interpolate layer opacities between snapshots
-        var blended: [Layer] = fadeTargetLayers
-        for i in blended.indices {
-            let targetOpacity = fadeTargetLayers[i].opacity
-            let srcOpacity: Double
-            if i < fadeStartLayers.count {
-                srcOpacity = fadeStartLayers[i].opacity
-            } else {
-                srcOpacity = 0
-            }
-            blended[i].opacity = srcOpacity + (targetOpacity - srcOpacity) * t
-        }
-        activeLayers = blended
     }
 }
 
