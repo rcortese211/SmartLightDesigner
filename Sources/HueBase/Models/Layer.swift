@@ -127,13 +127,39 @@ extension ParameterValue: Codable {
     }
 }
 
+struct ZonePoint: Codable, Equatable {
+    var x: Double
+    var y: Double
+}
+
 struct SpatialZone: Codable, Equatable {
     var x: Double = 0
     var y: Double = 0
     var width: Double = 1
     var height: Double = 1
+    var points: [ZonePoint]? = nil  // polygon path; x/y/width/height hold bounding box
 
-    var isFullCanvas: Bool { x == 0 && y == 0 && width == 1 && height == 1 }
+    var isFullCanvas: Bool { points == nil && x == 0 && y == 0 && width == 1 && height == 1 }
+
+    func contains(nx: Double, ny: Double) -> Bool {
+        if let pts = points { return pointInPolygon(x: nx, y: ny, polygon: pts) }
+        return nx >= x && nx < x + width && ny >= y && ny < y + height
+    }
+
+    private func pointInPolygon(x: Double, y: Double, polygon: [ZonePoint]) -> Bool {
+        guard polygon.count >= 3 else { return false }
+        var inside = false
+        var j = polygon.count - 1
+        for i in 0..<polygon.count {
+            let xi = polygon[i].x, yi = polygon[i].y
+            let xj = polygon[j].x, yj = polygon[j].y
+            if ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi) {
+                inside = !inside
+            }
+            j = i
+        }
+        return inside
+    }
 }
 
 struct Layer: Codable, Identifiable {

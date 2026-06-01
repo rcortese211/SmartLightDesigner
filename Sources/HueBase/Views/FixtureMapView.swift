@@ -18,10 +18,10 @@ struct FixtureMapView: View {
     @State private var marqueeEnd: CGPoint? = nil
     // Zone draw state
     @State private var zoneDrawMode = false
-    @State private var zoneDrawStart: CGPoint? = nil
-    @State private var zoneDrawCurrent: CGPoint? = nil
+    @State private var zoneDrawPoints: [CGPoint] = []
     @State private var showZoneSavePopover = false
     @State private var pendingZoneRect: CGRect? = nil
+    @State private var pendingZonePoints: [ZonePoint] = []
     @State private var pendingZoneName = ""
     // Live group-drag state
     @State private var activeDragFixtureID: UUID? = nil
@@ -137,18 +137,22 @@ struct FixtureMapView: View {
                             Button("Cancel") {
                                 showZoneSavePopover = false
                                 pendingZoneRect = nil
+                                pendingZonePoints = []
                                 pendingZoneName = ""
                             }
                             Spacer()
                             Button("Save") {
                                 if let r = pendingZoneRect {
+                                    let pts = pendingZonePoints.count >= 3 ? pendingZonePoints : nil
                                     appState.show.zoneLibrary.append(NamedSpatialZone(
                                         name: pendingZoneName.isEmpty ? "Zone \(appState.show.zoneLibrary.count + 1)" : pendingZoneName,
-                                        zone: SpatialZone(x: r.minX, y: r.minY, width: r.width, height: r.height)
+                                        zone: SpatialZone(x: r.minX, y: r.minY, width: r.width, height: r.height,
+                                                          points: pts)
                                     ))
                                 }
                                 showZoneSavePopover = false
                                 pendingZoneRect = nil
+                                pendingZonePoints = []
                                 pendingZoneName = ""
                                 zoneDrawMode = false
                             }
@@ -184,8 +188,12 @@ struct FixtureMapView: View {
                         DragGesture(minimumDistance: 3)
                             .onChanged { val in
                                 if zoneDrawMode {
-                                    zoneDrawStart = val.startLocation
-                                    zoneDrawCurrent = val.location
+                                    let pt = val.location
+                                    if zoneDrawPoints.isEmpty { zoneDrawPoints.append(val.startLocation) }
+                                    if let last = zoneDrawPoints.last {
+                                        let dx = pt.x - last.x, dy = pt.y - last.y
+                                        if dx*dx + dy*dy > 25 { zoneDrawPoints.append(pt) }
+                                    }
                                 } else {
                                     marqueeStart = val.startLocation
                                     marqueeEnd   = val.location
@@ -193,22 +201,20 @@ struct FixtureMapView: View {
                             }
                             .onEnded { val in
                                 if zoneDrawMode {
-                                    let start = val.startLocation
-                                    let end = val.location
-                                    let rect = CGRect(x: min(start.x, end.x), y: min(start.y, end.y),
-                                                      width: abs(end.x - start.x), height: abs(end.y - start.y))
-                                    if rect.width > 8 && rect.height > 8 {
-                                        let normalized = CGRect(
-                                            x: rect.minX / geo.size.width,
-                                            y: rect.minY / geo.size.height,
-                                            width: rect.width / geo.size.width,
-                                            height: rect.height / geo.size.height
-                                        )
-                                        pendingZoneRect = normalized
+                                    if zoneDrawPoints.count >= 3 {
+                                        let w = geo.size.width, h = geo.size.height
+                                        let nxs = zoneDrawPoints.map { $0.x / w }
+                                        let nys = zoneDrawPoints.map { $0.y / h }
+                                        let minX = nxs.min()!, maxX = nxs.max()!
+                                        let minY = nys.min()!, maxY = nys.max()!
+                                        pendingZoneRect = CGRect(x: minX, y: minY,
+                                                                  width: maxX - minX, height: maxY - minY)
+                                        pendingZonePoints = zoneDrawPoints.map {
+                                            ZonePoint(x: $0.x / w, y: $0.y / h)
+                                        }
                                         showZoneSavePopover = true
                                     }
-                                    zoneDrawStart = nil
-                                    zoneDrawCurrent = nil
+                                    zoneDrawPoints = []
                                 } else {
                                     let start = val.startLocation
                                     let end   = val.location
@@ -294,16 +300,16 @@ struct FixtureMapView: View {
                         .allowsHitTesting(false)
                 }
 
-                // Zone draw rectangle
-                if let start = zoneDrawStart, let end = zoneDrawCurrent {
-                    let r = CGRect(x: min(start.x, end.x), y: min(start.y, end.y),
-                                   width: abs(end.x - start.x), height: abs(end.y - start.y))
-                    RoundedRectangle(cornerRadius: 2)
-                        .stroke(SmartLightTheme.active, lineWidth: 1.5)
-                        .background(SmartLightTheme.active.opacity(0.08).clipShape(RoundedRectangle(cornerRadius: 2)))
-                        .frame(width: r.width, height: r.height)
-                        .position(x: r.midX, y: r.midY)
-                        .allowsHitTesting(false)
+                // Zone draw freehand path
+                if zoneDrawPoints.count > 1 {
+                    Canvas { ctx, _ in
+                        var path = Path()
+                        path.move(to: zoneDrawPoints[0])
+                        for pt in zoneDrawPoints.dropFirst() { path.addLine(to: pt) }
+                        ctx.stroke(path, with: .color(SmartLightTheme.active),
+                                   style: StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+                    }
+                    .allowsHitTesting(false)
                 }
             }
         }

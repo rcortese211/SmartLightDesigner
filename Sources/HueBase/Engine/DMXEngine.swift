@@ -121,8 +121,7 @@ final class DMXEngine {
                     effectFixture = fixture
                 } else {
                     let z = layer.zone
-                    guard fixture.positionX >= z.x && fixture.positionX < z.x + z.width &&
-                          fixture.positionY >= z.y && fixture.positionY < z.y + z.height else { continue }
+                    guard z.contains(nx: fixture.positionX, ny: fixture.positionY) else { continue }
                     var f = fixture
                     f.positionX = (fixture.positionX - z.x) / z.width
                     f.positionY = (fixture.positionY - z.y) / z.height

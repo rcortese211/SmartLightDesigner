@@ -70,32 +70,39 @@ struct LayerEditorView: View {
 
             Section("Spatial Zone") {
                 SpatialZoneEditor(zone: $layer.zone, fixtures: appState.show.fixtures)
-                LabeledContent("X") {
-                    HStack {
-                        Slider(value: $layer.zone.x, in: 0...0.99)
-                        Text(String(format: "%.2f", layer.zone.x))
-                            .monospacedDigit().frame(width: 40)
+                if let pts = layer.zone.points {
+                    LabeledContent("Type") {
+                        Text("polygon (\(pts.count) pts)")
+                            .foregroundStyle(.secondary)
                     }
-                }
-                LabeledContent("Y") {
-                    HStack {
-                        Slider(value: $layer.zone.y, in: 0...0.99)
-                        Text(String(format: "%.2f", layer.zone.y))
-                            .monospacedDigit().frame(width: 40)
+                } else {
+                    LabeledContent("X") {
+                        HStack {
+                            Slider(value: $layer.zone.x, in: 0...0.99)
+                            Text(String(format: "%.2f", layer.zone.x))
+                                .monospacedDigit().frame(width: 40)
+                        }
                     }
-                }
-                LabeledContent("Width") {
-                    HStack {
-                        Slider(value: $layer.zone.width, in: 0.01...1)
-                        Text(String(format: "%.2f", layer.zone.width))
-                            .monospacedDigit().frame(width: 40)
+                    LabeledContent("Y") {
+                        HStack {
+                            Slider(value: $layer.zone.y, in: 0...0.99)
+                            Text(String(format: "%.2f", layer.zone.y))
+                                .monospacedDigit().frame(width: 40)
+                        }
                     }
-                }
-                LabeledContent("Height") {
-                    HStack {
-                        Slider(value: $layer.zone.height, in: 0.01...1)
-                        Text(String(format: "%.2f", layer.zone.height))
-                            .monospacedDigit().frame(width: 40)
+                    LabeledContent("Width") {
+                        HStack {
+                            Slider(value: $layer.zone.width, in: 0.01...1)
+                            Text(String(format: "%.2f", layer.zone.width))
+                                .monospacedDigit().frame(width: 40)
+                        }
+                    }
+                    LabeledContent("Height") {
+                        HStack {
+                            Slider(value: $layer.zone.height, in: 0.01...1)
+                            Text(String(format: "%.2f", layer.zone.height))
+                                .monospacedDigit().frame(width: 40)
+                        }
                     }
                 }
 
@@ -147,9 +154,15 @@ struct LayerEditorView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(named.name)
                                         .font(.system(size: 11, weight: .medium, design: .monospaced))
-                                    Text("\(Int(named.zone.width * 100))%×\(Int(named.zone.height * 100))% @ (\(String(format: "%.2f", named.zone.x)), \(String(format: "%.2f", named.zone.y)))")
-                                        .font(.system(size: 9, design: .monospaced))
-                                        .foregroundStyle(.secondary)
+                                    Group {
+                                        if let pts = named.zone.points {
+                                            Text("polygon (\(pts.count) pts)")
+                                        } else {
+                                            Text("\(Int(named.zone.width * 100))%×\(Int(named.zone.height * 100))% @ (\(String(format: "%.2f", named.zone.x)), \(String(format: "%.2f", named.zone.y)))")
+                                        }
+                                    }
+                                    .font(.system(size: 9, design: .monospaced))
+                                    .foregroundStyle(.secondary)
                                 }
                                 .onTapGesture(count: 2) { editingZoneID = named.id }
                             }
@@ -269,29 +282,36 @@ struct SpatialZoneEditor: View {
         GeometryReader { geo in
             let sz = geo.size
             Canvas { ctx, size in
-                let rect = zoneRect(in: size)
-
                 ctx.fill(Path(CGRect(origin: .zero, size: size)),
                          with: .color(Color(white: 0.08)))
                 drawGrid(ctx: ctx, size: size)
 
-                ctx.fill(Path(rect),
-                         with: .color(SmartLightTheme.active.opacity(0.15)))
-
-                ctx.stroke(Path(rect),
-                           with: .color(SmartLightTheme.active.opacity(0.8)), lineWidth: 1.5)
-
-                let handleR: CGFloat = 5
-                ctx.fill(Path(ellipseIn: CGRect(x: rect.maxX - handleR * 2,
-                                                y: rect.maxY - handleR * 2,
-                                                width: handleR * 2, height: handleR * 2)),
-                         with: .color(SmartLightTheme.active))
+                if let pts = zone.points, pts.count >= 3 {
+                    var path = Path()
+                    path.move(to: CGPoint(x: CGFloat(pts[0].x) * size.width,
+                                         y: CGFloat(pts[0].y) * size.height))
+                    for pt in pts.dropFirst() {
+                        path.addLine(to: CGPoint(x: CGFloat(pt.x) * size.width,
+                                                 y: CGFloat(pt.y) * size.height))
+                    }
+                    path.closeSubpath()
+                    ctx.fill(path, with: .color(SmartLightTheme.active.opacity(0.15)))
+                    ctx.stroke(path, with: .color(SmartLightTheme.active.opacity(0.8)), lineWidth: 1.5)
+                } else {
+                    let rect = zoneRect(in: size)
+                    ctx.fill(Path(rect), with: .color(SmartLightTheme.active.opacity(0.15)))
+                    ctx.stroke(Path(rect), with: .color(SmartLightTheme.active.opacity(0.8)), lineWidth: 1.5)
+                    let handleR: CGFloat = 5
+                    ctx.fill(Path(ellipseIn: CGRect(x: rect.maxX - handleR * 2,
+                                                    y: rect.maxY - handleR * 2,
+                                                    width: handleR * 2, height: handleR * 2)),
+                             with: .color(SmartLightTheme.active))
+                }
 
                 for f in fixtures {
                     let fx = CGFloat(f.positionX) * size.width
                     let fy = CGFloat(f.positionY) * size.height
-                    let inZone = f.positionX >= zone.x && f.positionX < zone.x + zone.width &&
-                                 f.positionY >= zone.y && f.positionY < zone.y + zone.height
+                    let inZone = zone.contains(nx: f.positionX, ny: f.positionY)
                     ctx.fill(Path(ellipseIn: CGRect(x: fx - 2.5, y: fy - 2.5, width: 5, height: 5)),
                              with: .color(inZone ? .white : Color(white: 0.3)))
                 }
@@ -299,6 +319,7 @@ struct SpatialZoneEditor: View {
             .gesture(
                 DragGesture(minimumDistance: 1)
                     .onChanged { value in
+                        guard zone.points == nil else { return }
                         if dragStartZone == nil {
                             dragStartZone = zone
                             dragType = detectDragType(at: value.startLocation, size: sz)
