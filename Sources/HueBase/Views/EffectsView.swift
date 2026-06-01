@@ -63,7 +63,7 @@ struct EffectsView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "folder.fill")
                             .font(.system(size: 10))
-                            .foregroundStyle(HueBaseTheme.purple.opacity(0.7))
+                            .foregroundStyle(SmartLightTheme.purple.opacity(0.7))
                         Text(folder.name)
                             .font(.system(size: 11, weight: .medium, design: .monospaced))
                         Spacer()
@@ -83,23 +83,23 @@ struct EffectsView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(HueBaseTheme.surface)
+            .background(SmartLightTheme.surface)
 
-            Divider().background(HueBaseTheme.border)
+            Divider().background(SmartLightTheme.border)
             HStack {
                 Button(action: { showAddFolder = true }) {
                     Image(systemName: "folder.badge.plus")
                         .font(.system(size: 11))
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(HueBaseTheme.purple)
+                .foregroundStyle(SmartLightTheme.purple)
                 Spacer()
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(HueBaseTheme.surfaceHigh)
+            .background(SmartLightTheme.surfaceHigh)
         }
-        .background(HueBaseTheme.surface)
+        .background(SmartLightTheme.surface)
     }
 
     // MARK: - Palette Column
@@ -118,17 +118,17 @@ struct EffectsView: View {
                                 if palette.id == appState.recalledPaletteIDOnA {
                                     Text("A")
                                         .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                        .foregroundStyle(HueBaseTheme.active)
+                                        .foregroundStyle(SmartLightTheme.active)
                                         .padding(.horizontal, 6).padding(.vertical, 3)
-                                        .background(HueBaseTheme.active.opacity(0.18))
+                                        .background(SmartLightTheme.active.opacity(0.18))
                                         .clipShape(RoundedRectangle(cornerRadius: 4))
                                 }
                                 if palette.id == appState.recalledPaletteIDOnB {
                                     Text("B")
                                         .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                        .foregroundStyle(HueBaseTheme.purple)
+                                        .foregroundStyle(SmartLightTheme.purple)
                                         .padding(.horizontal, 6).padding(.vertical, 3)
-                                        .background(HueBaseTheme.purple.opacity(0.18))
+                                        .background(SmartLightTheme.purple.opacity(0.18))
                                         .clipShape(RoundedRectangle(cornerRadius: 4))
                                 }
                             }
@@ -173,7 +173,7 @@ struct EffectsView: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
-                .background(HueBaseTheme.surface)
+                .background(SmartLightTheme.surface)
             } else {
                 VStack {
                     Spacer()
@@ -183,17 +183,17 @@ struct EffectsView: View {
                     Spacer()
                 }
                 .frame(maxWidth: .infinity)
-                .background(HueBaseTheme.surface)
+                .background(SmartLightTheme.surface)
             }
 
-            Divider().background(HueBaseTheme.border)
+            Divider().background(SmartLightTheme.border)
             HStack {
                 Button(action: { showAddPalette = true }) {
                     Image(systemName: "plus.square")
                         .font(.system(size: 11))
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(HueBaseTheme.purple)
+                .foregroundStyle(SmartLightTheme.purple)
                 .disabled(selectedFolderID == nil)
 
                 Spacer()
@@ -202,22 +202,22 @@ struct EffectsView: View {
                     Button(action: recallSelectedPalette) {
                         Text("→ A")
                             .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .foregroundStyle(HueBaseTheme.active)
+                            .foregroundStyle(SmartLightTheme.active)
                     }
                     .buttonStyle(.plain)
                     Button(action: recallSelectedPaletteToB) {
                         Text("→ B")
                             .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .foregroundStyle(HueBaseTheme.purple)
+                            .foregroundStyle(SmartLightTheme.purple)
                     }
                     .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(HueBaseTheme.surfaceHigh)
+            .background(SmartLightTheme.surfaceHigh)
         }
-        .background(HueBaseTheme.surface)
+        .background(SmartLightTheme.surface)
     }
 
     // MARK: - Layer Stack Column (palette content + editor)
@@ -239,7 +239,7 @@ struct EffectsView: View {
             Spacer()
             Image(systemName: "sparkles")
                 .font(.system(size: 28))
-                .foregroundStyle(HueBaseTheme.purple.opacity(0.3))
+                .foregroundStyle(SmartLightTheme.purple.opacity(0.3))
             Text("SELECT AN EFFECT LAYER")
                 .font(.system(size: 10, weight: .semibold, design: .monospaced))
                 .foregroundStyle(Color(white: 0.25))
@@ -247,7 +247,7 @@ struct EffectsView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(HueBaseTheme.background)
+        .background(SmartLightTheme.background)
     }
 
     private var selectedLayerBinding: Binding<Layer>? {
@@ -272,16 +272,16 @@ struct EffectsView: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
-                .background(HueBaseTheme.surface)
+                .background(SmartLightTheme.surface)
 
-                Divider().background(HueBaseTheme.border)
+                Divider().background(SmartLightTheme.border)
                 HStack {
                     Button(action: addLayerToPalette) {
                         Image(systemName: "plus")
                             .font(.system(size: 11))
                     }
                     .buttonStyle(.plain)
-                    .foregroundStyle(HueBaseTheme.purple)
+                    .foregroundStyle(SmartLightTheme.purple)
 
                     Spacer()
 
@@ -291,7 +291,7 @@ struct EffectsView: View {
                             Text("RECALL → A")
                                 .font(.system(size: 9, weight: .bold, design: .monospaced))
                         }
-                        .foregroundStyle(HueBaseTheme.active)
+                        .foregroundStyle(SmartLightTheme.active)
                     }
                     .buttonStyle(.plain)
                     Button(action: recallSelectedPaletteToB) {
@@ -300,13 +300,13 @@ struct EffectsView: View {
                             Text("→ B")
                                 .font(.system(size: 9, weight: .bold, design: .monospaced))
                         }
-                        .foregroundStyle(HueBaseTheme.purple)
+                        .foregroundStyle(SmartLightTheme.purple)
                     }
                     .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(HueBaseTheme.surfaceHigh)
+                .background(SmartLightTheme.surfaceHigh)
             } else {
                 PanelHeader(title: "Effect Layers")
                 VStack {
@@ -317,10 +317,10 @@ struct EffectsView: View {
                     Spacer()
                 }
                 .frame(maxWidth: .infinity)
-                .background(HueBaseTheme.surface)
+                .background(SmartLightTheme.surface)
             }
         }
-        .background(HueBaseTheme.surface)
+        .background(SmartLightTheme.surface)
     }
 
     // MARK: - Computed helpers
@@ -525,7 +525,7 @@ struct LayerRowView: View {
                     .foregroundStyle(layer.isEnabled ? .primary : .secondary)
                 Text(EffectRegistry.shared.effect(for: layer.effectId)?.name ?? layer.effectId)
                     .font(.system(size: 9, design: .monospaced))
-                    .foregroundStyle(HueBaseTheme.purple.opacity(0.7))
+                    .foregroundStyle(SmartLightTheme.purple.opacity(0.7))
             }
             Spacer()
             Text("\(Int(layer.opacity * 100))%")
@@ -559,14 +559,14 @@ struct AddFolderSheet: View {
                         isPresented = false
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(HueBaseTheme.purple)
+                    .tint(SmartLightTheme.purple)
                     .disabled(name.isEmpty)
                 }
             }
             .padding(16)
         }
         .frame(width: 300)
-        .background(HueBaseTheme.surface)
+        .background(SmartLightTheme.surface)
     }
 }
 
@@ -594,14 +594,14 @@ struct AddPaletteSheet: View {
                     Spacer()
                     Button("Create") { createPalette(); isPresented = false }
                         .buttonStyle(.borderedProminent)
-                        .tint(HueBaseTheme.purple)
+                        .tint(SmartLightTheme.purple)
                         .disabled(name.isEmpty)
                 }
             }
             .padding(16)
         }
         .frame(width: 320)
-        .background(HueBaseTheme.surface)
+        .background(SmartLightTheme.surface)
     }
 
     private func createPalette() {

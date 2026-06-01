@@ -173,7 +173,7 @@ struct DMXColorPicker: View {
             HStack {
                 Text("GLOBAL")
                     .font(.system(size: 7, weight: .bold, design: .monospaced))
-                    .foregroundStyle(HueBaseTheme.purple.opacity(0.8))
+                    .foregroundStyle(SmartLightTheme.purple.opacity(0.8))
                 Spacer()
                 Button {
                     saveName = ""
@@ -182,7 +182,7 @@ struct DMXColorPicker: View {
                 } label: {
                     Image(systemName: showSaveRow ? "xmark" : "plus")
                         .font(.system(size: 9))
-                        .foregroundStyle(HueBaseTheme.purple)
+                        .foregroundStyle(SmartLightTheme.purple)
                 }
                 .buttonStyle(.plain)
             }
@@ -199,7 +199,7 @@ struct DMXColorPicker: View {
                     Button(action: commitSave) {
                         Image(systemName: "checkmark")
                             .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(HueBaseTheme.active)
+                            .foregroundStyle(SmartLightTheme.active)
                     }
                     .buttonStyle(.plain)
                     .disabled(saveName.trimmingCharacters(in: .whitespaces).isEmpty)

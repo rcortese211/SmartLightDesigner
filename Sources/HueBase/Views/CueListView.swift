@@ -15,7 +15,7 @@ struct CueListView: View {
             }
         }
         .navigationTitle("Cues")
-        .background(HueBaseTheme.background)
+        .background(SmartLightTheme.background)
         .toolbar {
             ToolbarItemGroup {
                 Button(action: recordCue) {
@@ -51,7 +51,7 @@ struct CueListView: View {
             .width(50)
             TableColumn("Name") { cue in
                 Text(cue.name.isEmpty ? "—" : cue.name)
-                    .foregroundStyle(cue.id == cueEngine.currentCue?.id ? HueBaseTheme.active : .primary)
+                    .foregroundStyle(cue.id == cueEngine.currentCue?.id ? SmartLightTheme.active : .primary)
                     .onTapGesture(count: 2) { editingCue = cue }
             }
             TableColumn("Fade In") { cue in

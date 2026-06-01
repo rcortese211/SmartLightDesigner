@@ -2,11 +2,11 @@
 import PackageDescription
 
 let package = Package(
-    name: "HueBase",
+    name: "SmartLight",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
-            name: "HueBase",
+            name: "SmartLight",
             path: "Sources/HueBase"
         )
     ]

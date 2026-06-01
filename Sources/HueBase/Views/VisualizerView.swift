@@ -33,7 +33,7 @@ struct VisualizerView: View {
 
         return VStack(spacing: 0) {
             controlBar
-            Divider().background(HueBaseTheme.border)
+            Divider().background(SmartLightTheme.border)
 
             if fixtures.isEmpty {
                 emptyState
@@ -96,7 +96,7 @@ struct VisualizerView: View {
             HStack(spacing: 12) {
                 Text("\(fixtures.count) FIXTURES")
                     .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(HueBaseTheme.purple.opacity(0.8))
+                    .foregroundStyle(SmartLightTheme.purple.opacity(0.8))
                 Text("UNI \(displayUniverseIndex + 1)")
                     .font(.system(size: 9, weight: .semibold, design: .monospaced))
                     .foregroundStyle(Color(white: 0.32))
@@ -104,12 +104,12 @@ struct VisualizerView: View {
                 if activeCount > 0 {
                     Text("\(activeCount) ACTIVE")
                         .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .foregroundStyle(HueBaseTheme.active)
+                        .foregroundStyle(SmartLightTheme.active)
                 }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(HueBaseTheme.surfaceHigh)
+            .background(SmartLightTheme.surfaceHigh)
             .overlay(alignment: .top) { GradientBar(height: 1) }
         }
         .navigationTitle("Visualizer")
@@ -146,7 +146,7 @@ struct VisualizerView: View {
                 .font(.system(size: 9, weight: .semibold, design: .monospaced))
                 .foregroundStyle(Color(white: 0.38))
             Slider(value: $fixtureSize, in: 12...80)
-                .tint(HueBaseTheme.purple)
+                .tint(SmartLightTheme.purple)
                 .frame(width: 100)
 
             Divider().frame(height: 14)
@@ -176,7 +176,7 @@ struct VisualizerView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
-        .background(HueBaseTheme.surfaceHigh)
+        .background(SmartLightTheme.surfaceHigh)
     }
 
     private func resetZoom() {
@@ -191,7 +191,7 @@ struct VisualizerView: View {
             Spacer()
             Image(systemName: "eye.slash")
                 .font(.system(size: 32))
-                .foregroundStyle(HueBaseTheme.purple.opacity(0.25))
+                .foregroundStyle(SmartLightTheme.purple.opacity(0.25))
             Text("NO FIXTURES PATCHED")
                 .font(.system(size: 11, weight: .semibold, design: .monospaced))
                 .foregroundStyle(Color(white: 0.25))
@@ -412,7 +412,7 @@ struct VisualizerView: View {
     private func fixtureLabel(_ fixture: Fixture, position: CGPoint) -> some View {
         Text(fixture.name)
             .font(.system(size: 8, design: .monospaced))
-            .foregroundStyle(HueBaseTheme.purple.opacity(0.7))
+            .foregroundStyle(SmartLightTheme.purple.opacity(0.7))
             .position(x: position.x, y: position.y + fixtureSize / 2 + 8)
     }
 }

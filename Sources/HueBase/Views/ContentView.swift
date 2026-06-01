@@ -39,7 +39,7 @@ struct ContentView: View {
         } detail: {
             VStack(spacing: 0) {
                 detailView
-                    .background(HueBaseTheme.background)
+                    .background(SmartLightTheme.background)
                     .frame(maxHeight: .infinity)
                 ABCrossfaderBar()
                 TimecodeBarView()
@@ -49,7 +49,7 @@ struct ContentView: View {
             ToolbarItem(placement: .navigation) {
                 Text(appState.show.name.isEmpty ? "SmartLight Designer" : appState.show.name)
                     .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(HueBaseTheme.accentGradient)
+                    .foregroundStyle(SmartLightTheme.accentGradient)
             }
             ToolbarItemGroup(placement: .primaryAction) {
                 OutputToggleButton()
@@ -88,7 +88,7 @@ struct OutputToggleButton: View {
         Button(action: { appState.toggleOutput() }) {
             HStack(spacing: 5) {
                 Circle()
-                    .fill(appState.isOutputEnabled ? HueBaseTheme.active : Color(white: 0.3))
+                    .fill(appState.isOutputEnabled ? SmartLightTheme.active : Color(white: 0.3))
                     .frame(width: 7, height: 7)
                 Text(appState.isOutputEnabled ? "OUTPUT ON" : "OUTPUT OFF")
                     .font(.system(size: 11, weight: .bold, design: .monospaced))
@@ -99,19 +99,19 @@ struct OutputToggleButton: View {
         .buttonStyle(.plain)
         .background(
             appState.isOutputEnabled
-                ? HueBaseTheme.active.opacity(0.12)
-                : HueBaseTheme.surface
+                ? SmartLightTheme.active.opacity(0.12)
+                : SmartLightTheme.surface
         )
         .overlay(
             RoundedRectangle(cornerRadius: 3)
                 .stroke(
-                    appState.isOutputEnabled ? HueBaseTheme.active : HueBaseTheme.border,
+                    appState.isOutputEnabled ? SmartLightTheme.active : SmartLightTheme.border,
                     lineWidth: 1
                 )
         )
         .cornerRadius(3)
         .foregroundStyle(
-            appState.isOutputEnabled ? HueBaseTheme.active : Color.secondary
+            appState.isOutputEnabled ? SmartLightTheme.active : Color.secondary
         )
         .help(appState.isOutputEnabled ? "Disable DMX output" : "Enable DMX output")
     }

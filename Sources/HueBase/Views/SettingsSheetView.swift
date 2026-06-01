@@ -11,7 +11,7 @@ struct SettingsSheetView: View {
             HStack {
                 Text("SETTINGS")
                     .font(.system(size: 12, weight: .heavy, design: .monospaced))
-                    .foregroundStyle(HueBaseTheme.accentGradient)
+                    .foregroundStyle(SmartLightTheme.accentGradient)
                     .kerning(1.5)
                 Spacer()
                 Button(action: { isPresented = false }) {
@@ -23,7 +23,7 @@ struct SettingsSheetView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .background(HueBaseTheme.surfaceHigh)
+            .background(SmartLightTheme.surfaceHigh)
             .overlay(alignment: .bottom) { GradientBar(height: 1) }
 
             TabView {
@@ -36,8 +36,10 @@ struct SettingsSheetView: View {
                     statusIsError: $settingsStatusIsError
                 )
                 .tabItem { Label("Output", systemImage: "network") }
+                BenchmarkView()
+                    .tabItem { Label("Benchmark", systemImage: "gauge.with.needle") }
             }
-            .background(HueBaseTheme.background)
+            .background(SmartLightTheme.background)
 
             // Status bar — shows feedback from output/discovery/pairing
             HStack(spacing: 6) {
@@ -55,11 +57,11 @@ struct SettingsSheetView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 5)
-            .background(HueBaseTheme.surfaceHigh)
-            .overlay(alignment: .top) { HueBaseTheme.border.frame(height: 1) }
+            .background(SmartLightTheme.surfaceHigh)
+            .overlay(alignment: .top) { SmartLightTheme.border.frame(height: 1) }
         }
         .frame(minWidth: 860, minHeight: 580)
-        .background(HueBaseTheme.background)
+        .background(SmartLightTheme.background)
     }
 }
 
@@ -76,13 +78,13 @@ struct ABCrossfaderBar: View {
                 .buttonStyle(.plain)
                 .font(.system(size: 11, weight: .heavy, design: .monospaced))
                 .foregroundStyle(appState.crossfade < 0.01
-                    ? HueBaseTheme.active : Color(white: 0.38))
+                    ? SmartLightTheme.active : Color(white: 0.38))
                 .frame(width: 18)
 
             Text("PROG A")
                 .font(.system(size: 9, weight: .semibold, design: .monospaced))
                 .foregroundStyle(appState.crossfade < 0.5
-                    ? HueBaseTheme.active.opacity(0.85) : Color(white: 0.28))
+                    ? SmartLightTheme.active.opacity(0.85) : Color(white: 0.28))
 
             Slider(value: $state.crossfade, in: 0...1)
                 .tint(crossfaderColor)
@@ -91,14 +93,14 @@ struct ABCrossfaderBar: View {
             Text("PROG B")
                 .font(.system(size: 9, weight: .semibold, design: .monospaced))
                 .foregroundStyle(appState.crossfade > 0.5
-                    ? HueBaseTheme.purple.opacity(0.9) : Color(white: 0.28))
+                    ? SmartLightTheme.purple.opacity(0.9) : Color(white: 0.28))
 
             // Snap to B
             Button("B") { state.crossfade = 1 }
                 .buttonStyle(.plain)
                 .font(.system(size: 11, weight: .heavy, design: .monospaced))
                 .foregroundStyle(appState.crossfade > 0.99
-                    ? HueBaseTheme.purple : Color(white: 0.38))
+                    ? SmartLightTheme.purple : Color(white: 0.38))
                 .frame(width: 18)
 
             Divider().frame(height: 14)
@@ -111,14 +113,14 @@ struct ABCrossfaderBar: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 6)
-        .background(HueBaseTheme.surfaceHigh)
-        .overlay(alignment: .top) { HueBaseTheme.border.frame(height: 1) }
+        .background(SmartLightTheme.surfaceHigh)
+        .overlay(alignment: .top) { SmartLightTheme.border.frame(height: 1) }
     }
 
     private var crossfaderColor: Color {
-        if appState.crossfade < 0.01 { return HueBaseTheme.active }
-        if appState.crossfade > 0.99 { return HueBaseTheme.purple }
-        return HueBaseTheme.blue
+        if appState.crossfade < 0.01 { return SmartLightTheme.active }
+        if appState.crossfade > 0.99 { return SmartLightTheme.purple }
+        return SmartLightTheme.blue
     }
 
     private var crossfadeLabel: String {

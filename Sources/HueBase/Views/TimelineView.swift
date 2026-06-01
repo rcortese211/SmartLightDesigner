@@ -60,22 +60,22 @@ struct TimelineView: View {
     var body: some View {
         VStack(spacing: 0) {
             transportBar
-            Divider().background(HueBaseTheme.border)
+            Divider().background(SmartLightTheme.border)
 
             HStack(alignment: .top, spacing: 0) {
                 trackHeaderColumn
-                Divider().background(HueBaseTheme.border)
+                Divider().background(SmartLightTheme.border)
                 VStack(spacing: 0) {
                     // Audio row — pinned above timeline, scrolls horizontally via Canvas offset
                     audioPinnedRow
                         .frame(height: kTrackHeight)
-                    Divider().background(HueBaseTheme.border)
+                    Divider().background(SmartLightTheme.border)
                     timelineScrollArea
                 }
             }
             .frame(maxHeight: .infinity)
         }
-        .background(HueBaseTheme.background)
+        .background(SmartLightTheme.background)
         .background {
             Button("") {
                 if appState.timelineEngine.isPlaying { appState.timelineEngine.pause() }
@@ -101,7 +101,7 @@ struct TimelineView: View {
             // Play / Pause
             transportBtn(
                 icon: appState.timelineEngine.isPlaying ? "pause.fill" : "play.fill",
-                tint: HueBaseTheme.active
+                tint: SmartLightTheme.active
             ) {
                 if appState.timelineEngine.isPlaying { appState.timelineEngine.pause() }
                 else { appState.timelineEngine.play() }
@@ -118,19 +118,19 @@ struct TimelineView: View {
                 Image(systemName: "repeat")
                     .font(.system(size: 11))
                     .frame(width: 22, height: 20)
-                    .foregroundStyle(looping ? HueBaseTheme.active : Color(white: 0.4))
-                    .background(looping ? HueBaseTheme.active.opacity(0.18) : HueBaseTheme.surface)
-                    .overlay(RoundedRectangle(cornerRadius: 2).stroke(HueBaseTheme.border, lineWidth: 1))
+                    .foregroundStyle(looping ? SmartLightTheme.active : Color(white: 0.4))
+                    .background(looping ? SmartLightTheme.active.opacity(0.18) : SmartLightTheme.surface)
+                    .overlay(RoundedRectangle(cornerRadius: 2).stroke(SmartLightTheme.border, lineWidth: 1))
                     .cornerRadius(2)
             }
             .buttonStyle(.plain)
 
-            HueBaseTheme.border.frame(width: 1).padding(.vertical, 4)
+            SmartLightTheme.border.frame(width: 1).padding(.vertical, 4)
 
             // Time display
             Text(formatTime(appState.timelineEngine.playheadTime))
                 .font(.system(size: 13, weight: .medium, design: .monospaced))
-                .foregroundStyle(appState.timelineEngine.isPlaying ? HueBaseTheme.active : Color(white: 0.65))
+                .foregroundStyle(appState.timelineEngine.isPlaying ? SmartLightTheme.active : Color(white: 0.65))
                 .frame(width: 88, alignment: .leading)
 
             Spacer()
@@ -146,7 +146,7 @@ struct TimelineView: View {
                     .font(.system(size: 11, design: .monospaced))
             }
 
-            HueBaseTheme.border.frame(width: 1).padding(.vertical, 4)
+            SmartLightTheme.border.frame(width: 1).padding(.vertical, 4)
 
             // Zoom
             HStack(spacing: 4) {
@@ -155,10 +155,10 @@ struct TimelineView: View {
                     .foregroundStyle(Color(white: 0.35))
                 Slider(value: $pixelsPerSecond, in: 20...400)
                     .frame(width: 100)
-                    .tint(HueBaseTheme.purple)
+                    .tint(SmartLightTheme.purple)
             }
 
-            HueBaseTheme.border.frame(width: 1).padding(.vertical, 4)
+            SmartLightTheme.border.frame(width: 1).padding(.vertical, 4)
 
             // Add track
             Button {
@@ -176,7 +176,7 @@ struct TimelineView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .frame(height: 36)
-        .background(HueBaseTheme.surfaceHigh)
+        .background(SmartLightTheme.surfaceHigh)
     }
 
     // MARK: - Track header column
@@ -185,21 +185,21 @@ struct TimelineView: View {
         VStack(spacing: 0) {
             // Audio header — pinned at top, aligned with audioPinnedRow
             audioTrackHeader
-            Divider().background(HueBaseTheme.border)
+            Divider().background(SmartLightTheme.border)
 
             // Ruler spacer — aligns with timeRuler in scroll area
             Color.clear.frame(height: kRulerHeight)
-            Divider().background(HueBaseTheme.border)
+            Divider().background(SmartLightTheme.border)
 
             ForEach(Array(appState.show.timeline.tracks.enumerated()), id: \.element.id) { idx, track in
                 trackHeader(track: track, index: idx)
-                Divider().background(HueBaseTheme.border)
+                Divider().background(SmartLightTheme.border)
             }
 
             Spacer()
         }
         .frame(width: kHeaderWidth)
-        .background(HueBaseTheme.surfaceHigh)
+        .background(SmartLightTheme.surfaceHigh)
     }
 
     private func trackHeader(track: TimelineTrack, index: Int) -> some View {
@@ -219,7 +219,7 @@ struct TimelineView: View {
                 } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 9))
-                        .foregroundStyle(HueBaseTheme.purple)
+                        .foregroundStyle(SmartLightTheme.purple)
                 }
                 .buttonStyle(.plain)
                 .help("Add clip at playhead from current layer stack")
@@ -276,7 +276,7 @@ struct TimelineView: View {
             } label: {
                 Image(systemName: appState.audioPlayer.isLoaded ? "arrow.triangle.2.circlepath" : "plus")
                     .font(.system(size: 10))
-                    .foregroundStyle(HueBaseTheme.purple)
+                    .foregroundStyle(SmartLightTheme.purple)
             }
             .buttonStyle(.plain)
             .help(appState.audioPlayer.isLoaded ? "Replace audio file" : "Import audio file")
@@ -295,11 +295,11 @@ struct TimelineView: View {
                     ZStack(alignment: .topLeading) {
                         VStack(spacing: 0) {
                             timeRuler
-                            Divider().background(HueBaseTheme.border)
+                            Divider().background(SmartLightTheme.border)
 
                             ForEach(Array(appState.show.timeline.tracks.enumerated()), id: \.element.id) { idx, track in
                                 trackRow(track: track, index: idx)
-                                Divider().background(HueBaseTheme.border)
+                                Divider().background(SmartLightTheme.border)
                             }
 
                             Spacer()
@@ -332,7 +332,7 @@ struct TimelineView: View {
                 }
                 .coordinateSpace(name: "timelineHScroll")
                 .onPreferenceChange(TimelineScrollOffsetKey.self) { timelineScrollOffset = $0 }
-                .background(HueBaseTheme.background)
+                .background(SmartLightTheme.background)
                 .onChange(of: appState.timelineEngine.playheadTime) { _, t in
                     guard appState.timelineEngine.isPlaying else { return }
                     let phX = CGFloat(t * pixelsPerSecond)
@@ -386,7 +386,7 @@ struct TimelineView: View {
                         p.move(to: CGPoint(x: x, y: kRulerHeight - lineH))
                         p.addLine(to: CGPoint(x: x, y: kRulerHeight))
                     },
-                    with: .color(isMajor ? HueBaseTheme.purple.opacity(0.6) : HueBaseTheme.border),
+                    with: .color(isMajor ? SmartLightTheme.purple.opacity(0.6) : SmartLightTheme.border),
                     lineWidth: isMajor ? 1 : 0.5
                 )
                 if isLabel {
@@ -401,7 +401,7 @@ struct TimelineView: View {
             }
         }
         .frame(height: kRulerHeight)
-        .background(HueBaseTheme.surfaceHigh)
+        .background(SmartLightTheme.surfaceHigh)
         .contentShape(Rectangle())
         .gesture(
             DragGesture(minimumDistance: 0)
@@ -904,7 +904,7 @@ struct TimelineView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(HueBaseTheme.surfaceHigh)
+                .background(SmartLightTheme.surfaceHigh)
 
                 Divider()
 
@@ -914,14 +914,14 @@ struct TimelineView: View {
                         .foregroundStyle(Color(white: 0.35))
                         .frame(maxWidth: .infinity)
                         .padding(20)
-                        .background(HueBaseTheme.surface)
+                        .background(SmartLightTheme.surface)
                 } else {
                     List {
                         ForEach(Array(clip.layers.enumerated()), id: \.element.id) { idx, layer in
                             HStack(spacing: 8) {
                                 Text("#\(idx + 1)")
                                     .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(idx == 0 ? HueBaseTheme.active : Color(white: 0.35))
+                                    .foregroundStyle(idx == 0 ? SmartLightTheme.active : Color(white: 0.35))
                                     .frame(width: 24, alignment: .leading)
 
                                 if layerRenameID == layer.id {
@@ -949,11 +949,11 @@ struct TimelineView: View {
 
                                 Text(layer.effectId)
                                     .font(.system(size: 9, design: .monospaced))
-                                    .foregroundStyle(HueBaseTheme.purple.opacity(0.6))
+                                    .foregroundStyle(SmartLightTheme.purple.opacity(0.6))
                                     .lineLimit(1)
 
                                 Circle()
-                                    .fill(layer.isEnabled ? HueBaseTheme.active.opacity(0.85) : Color(white: 0.25))
+                                    .fill(layer.isEnabled ? SmartLightTheme.active.opacity(0.85) : Color(white: 0.25))
                                     .frame(width: 6, height: 6)
                             }
                             .padding(.vertical, 2)
@@ -969,7 +969,7 @@ struct TimelineView: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
-                    .background(HueBaseTheme.surface)
+                    .background(SmartLightTheme.surface)
                     .environment(\.editMode, .constant(.active))
                 }
 
@@ -979,10 +979,10 @@ struct TimelineView: View {
                     .foregroundStyle(Color(white: 0.3))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(HueBaseTheme.surfaceHigh)
+                    .background(SmartLightTheme.surfaceHigh)
             }
             .frame(width: 360, height: min(130 + CGFloat(clip.layers.count) * 38, 440))
-            .background(HueBaseTheme.surface)
+            .background(SmartLightTheme.surface)
         }
     }
 
@@ -1096,15 +1096,15 @@ struct TimelineView: View {
         return String(format: "%02d:%02d.%d", m, sec, ms)
     }
 
-    private func transportBtn(icon: String, tint: Color = HueBaseTheme.purple,
+    private func transportBtn(icon: String, tint: Color = SmartLightTheme.purple,
                                action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 10))
                 .frame(width: 22, height: 20)
                 .foregroundStyle(tint)
-                .background(HueBaseTheme.surface)
-                .overlay(RoundedRectangle(cornerRadius: 2).stroke(HueBaseTheme.border, lineWidth: 1))
+                .background(SmartLightTheme.surface)
+                .overlay(RoundedRectangle(cornerRadius: 2).stroke(SmartLightTheme.border, lineWidth: 1))
                 .cornerRadius(2)
         }
         .buttonStyle(.plain)

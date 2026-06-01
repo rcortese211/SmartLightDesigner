@@ -90,7 +90,7 @@ final class AppState {
     private var autosaveURL: URL? {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
             .first?
-            .appendingPathComponent("HueBase/autosave.sld")
+            .appendingPathComponent("SmartLight/autosave.sld")
     }
 
     private func scheduleAutosave() {
@@ -319,7 +319,7 @@ enum AppTab: String, CaseIterable, Identifiable {
 
     var isInSidebar: Bool {
         switch self {
-        case .patch, .output, .scripting: return false
+        case .patch, .output, .scripting, .benchmark: return false
         default: return true
         }
     }

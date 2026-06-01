@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum HueBaseTheme {
+enum SmartLightTheme {
     // Core palette — black/purple/blue, professional DMX console layout
     static let purple      = Color(red: 0.42, green: 0.18, blue: 0.92)
     static let blue        = Color(red: 0.17, green: 0.38, blue: 0.95)
@@ -38,10 +38,10 @@ enum HueBaseTheme {
 }
 
 extension View {
-    func hueBaseTheme() -> some View {
+    func smartLightTheme() -> some View {
         self
             .preferredColorScheme(.dark)
-            .tint(HueBaseTheme.purple)
+            .tint(SmartLightTheme.purple)
     }
 }
 
@@ -49,7 +49,7 @@ extension View {
 struct GradientBar: View {
     var height: CGFloat = 2
     var body: some View {
-        HueBaseTheme.accentGradient
+        SmartLightTheme.accentGradient
             .frame(height: height)
     }
 }
@@ -59,7 +59,7 @@ struct ThemeLabel: View {
     var body: some View {
         Text(title)
             .font(.caption.weight(.semibold))
-            .foregroundStyle(HueBaseTheme.accentGradient)
+            .foregroundStyle(SmartLightTheme.accentGradient)
             .textCase(nil)
     }
 }
@@ -71,16 +71,16 @@ struct PanelHeader: View {
         HStack {
             Text(title)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(HueBaseTheme.accentGradient)
+                .foregroundStyle(SmartLightTheme.accentGradient)
                 .kerning(1.0)
                 .textCase(.uppercase)
             Spacer()
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(HueBaseTheme.surfaceHigh)
+        .background(SmartLightTheme.surfaceHigh)
         .overlay(alignment: .bottom) {
-            HueBaseTheme.purple.opacity(0.5).frame(height: 1)
+            SmartLightTheme.purple.opacity(0.5).frame(height: 1)
         }
     }
 }
@@ -91,6 +91,6 @@ struct DMXValueLabel: View {
     var body: some View {
         Text(String(format: "%3d", value))
             .font(.system(.caption, design: .monospaced).bold())
-            .foregroundStyle(value > 0 ? HueBaseTheme.active : Color.secondary)
+            .foregroundStyle(value > 0 ? SmartLightTheme.active : Color.secondary)
     }
 }

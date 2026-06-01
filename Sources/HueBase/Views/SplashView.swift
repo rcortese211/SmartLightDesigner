@@ -32,14 +32,14 @@ struct SplashView: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text("SMARTLIGHT")
                     .font(.system(size: 24, weight: .black, design: .monospaced))
-                    .foregroundStyle(HueBaseTheme.accentGradient)
+                    .foregroundStyle(SmartLightTheme.accentGradient)
                     .kerning(3)
                 Text("DESIGNER")
                     .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .foregroundStyle(HueBaseTheme.active)
+                    .foregroundStyle(SmartLightTheme.active)
                     .kerning(6)
                 Rectangle()
-                    .fill(HueBaseTheme.accentGradient)
+                    .fill(SmartLightTheme.accentGradient)
                     .frame(height: 1.5)
                     .padding(.top, 5)
             }
@@ -77,7 +77,7 @@ struct SplashView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("RECENT")
                         .font(.system(size: 8, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(HueBaseTheme.borderBright)
+                        .foregroundStyle(SmartLightTheme.borderBright)
                         .kerning(2)
                         .padding(.top, 16)
                         .padding(.bottom, 1)
@@ -91,7 +91,7 @@ struct SplashView: View {
                                 HStack(spacing: 8) {
                                     Image(systemName: "doc.fill")
                                         .font(.system(size: 9))
-                                        .foregroundStyle(HueBaseTheme.purple.opacity(0.8))
+                                        .foregroundStyle(SmartLightTheme.purple.opacity(0.8))
                                     VStack(alignment: .leading, spacing: 1) {
                                         Text(url.deletingPathExtension().lastPathComponent)
                                             .font(.system(size: 10, weight: .medium, design: .monospaced))
@@ -109,10 +109,10 @@ struct SplashView: View {
                                 .padding(.vertical, 6)
                             }
                             .buttonStyle(.plain)
-                            .background(HueBaseTheme.surface.opacity(0.6))
+                            .background(SmartLightTheme.surface.opacity(0.6))
                             .clipShape(RoundedRectangle(cornerRadius: 4))
                             .overlay(RoundedRectangle(cornerRadius: 4)
-                                .stroke(HueBaseTheme.border.opacity(0.6), lineWidth: 1))
+                                .stroke(SmartLightTheme.border.opacity(0.6), lineWidth: 1))
                         }
                     }
                 }
@@ -125,7 +125,7 @@ struct SplashView: View {
                     Button("Continue last show") { isPresented = false }
                         .buttonStyle(.plain)
                         .font(.system(size: 9, design: .monospaced))
-                        .foregroundStyle(HueBaseTheme.borderBright)
+                        .foregroundStyle(SmartLightTheme.borderBright)
                 }
                 .padding(.top, 14)
             }
@@ -134,9 +134,9 @@ struct SplashView: View {
         .padding(24)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(HueBaseTheme.background.opacity(0.88))
+                .fill(SmartLightTheme.background.opacity(0.88))
                 .overlay(RoundedRectangle(cornerRadius: 12)
-                    .stroke(HueBaseTheme.border, lineWidth: 1))
+                    .stroke(SmartLightTheme.border, lineWidth: 1))
         )
     }
 }
@@ -336,12 +336,12 @@ struct SplashSecondaryButtonStyle: ButtonStyle {
         configuration.label
             .foregroundStyle(Color.primary)
             .background(
-                HueBaseTheme.surfaceHigh
+                SmartLightTheme.surfaceHigh
                     .opacity(configuration.isPressed ? 0.5 : 1.0)
             )
             .clipShape(RoundedRectangle(cornerRadius: 7))
             .overlay(RoundedRectangle(cornerRadius: 7)
-                .stroke(HueBaseTheme.border, lineWidth: 1))
+                .stroke(SmartLightTheme.border, lineWidth: 1))
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }

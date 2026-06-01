@@ -85,7 +85,7 @@ struct OutputSettingsView: View {
             if appState.show.sACN.enabled {
                 Section("Settings") {
                     LabeledContent("Source Name") {
-                        TextField("HueBase", text: $state.show.sACN.sourceName)
+                        TextField("SmartLight", text: $state.show.sACN.sourceName)
                             .textFieldStyle(.roundedBorder)
                     }
                     LabeledContent("Priority") {
@@ -405,7 +405,7 @@ struct OutputSettingsView: View {
                     }
                     Section {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("HueBase Network Timecode is a custom UDP protocol (port 5765).")
+                            Text("SmartLight Network Timecode is a custom UDP protocol (port 5765).")
                                 .font(.caption).foregroundStyle(.secondary)
                             Text("Master instances broadcast at the current frame rate. Slave instances lock to the first master they hear.")
                                 .font(.caption).foregroundStyle(.secondary)
@@ -418,12 +418,12 @@ struct OutputSettingsView: View {
             Section("Current Status") {
                 LabeledContent("Source") {
                     Text(appState.timecodeEngine.source.rawValue)
-                        .foregroundStyle(HueBaseTheme.purple)
+                        .foregroundStyle(SmartLightTheme.purple)
                 }
                 LabeledContent("Position") {
                     Text(appState.timecodeEngine.current.description)
                         .font(.system(.body, design: .monospaced))
-                        .foregroundStyle(HueBaseTheme.purple)
+                        .foregroundStyle(SmartLightTheme.purple)
                 }
                 LabeledContent("Running") {
                     Text(appState.timecodeEngine.isRunning ? "Yes" : "No")

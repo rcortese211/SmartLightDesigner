@@ -18,7 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 @main
-struct HueBaseApp: App {
+struct SmartLightApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var appState = AppState()
 
@@ -26,7 +26,7 @@ struct HueBaseApp: App {
         WindowGroup {
             ContentView()
                 .environment(appState)
-                .hueBaseTheme()
+                .smartLightTheme()
         }
         .defaultSize(width: 700, height: 440)
         .windowStyle(.titleBar)

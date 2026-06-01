@@ -23,17 +23,17 @@ struct ScriptEditorView: View {
             HStack {
                 Text("SCRIPTS")
                     .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(HueBaseTheme.accentGradient)
+                    .foregroundStyle(SmartLightTheme.accentGradient)
                     .kerning(1)
                 Spacer()
                 Button(action: addScript) {
                     Image(systemName: "plus.circle")
-                        .foregroundStyle(HueBaseTheme.purple)
+                        .foregroundStyle(SmartLightTheme.purple)
                 }
                 .buttonStyle(.plain)
             }
             .padding(.horizontal, 10).padding(.vertical, 8)
-            .background(HueBaseTheme.surfaceHigh)
+            .background(SmartLightTheme.surfaceHigh)
             .overlay(alignment: .bottom) { GradientBar(height: 1) }
             List(appState.show.savedScripts, selection: $selectedScriptId) { script in
                 Text(script.name)
@@ -63,7 +63,7 @@ struct ScriptEditorView: View {
                     HStack {
                         Text("CONSOLE")
                             .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(HueBaseTheme.accentGradient)
+                            .foregroundStyle(SmartLightTheme.accentGradient)
                             .kerning(1)
                         Spacer()
                         Button("CLEAR") { scriptEngine.clearOutput() }
@@ -72,7 +72,7 @@ struct ScriptEditorView: View {
                             .foregroundStyle(Color(white: 0.38))
                     }
                     .padding(.horizontal, 8).padding(.vertical, 6)
-                    .background(HueBaseTheme.surfaceHigh)
+                    .background(SmartLightTheme.surfaceHigh)
                     .overlay(alignment: .bottom) { GradientBar(height: 1) }
                     ScrollView {
                         Text(scriptEngine.consoleOutput.isEmpty ? "No output" : scriptEngine.consoleOutput)
@@ -81,10 +81,10 @@ struct ScriptEditorView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(8)
                     }
-                    .background(HueBaseTheme.background)
+                    .background(SmartLightTheme.background)
                 }
                 .frame(minWidth: 200)
-                .background(HueBaseTheme.background)
+                .background(SmartLightTheme.background)
             }
         }
     }
@@ -97,10 +97,10 @@ struct ScriptEditorView: View {
                     Text("RUN").font(.system(size: 11, weight: .bold, design: .monospaced))
                 }
                 .padding(.horizontal, 12).padding(.vertical, 5)
-                .background(scriptEngine.isRunning ? HueBaseTheme.surface : HueBaseTheme.purple.opacity(0.2))
-                .overlay(RoundedRectangle(cornerRadius: 3).stroke(HueBaseTheme.purple, lineWidth: 1))
+                .background(scriptEngine.isRunning ? SmartLightTheme.surface : SmartLightTheme.purple.opacity(0.2))
+                .overlay(RoundedRectangle(cornerRadius: 3).stroke(SmartLightTheme.purple, lineWidth: 1))
                 .cornerRadius(3)
-                .foregroundStyle(HueBaseTheme.accentGradient)
+                .foregroundStyle(SmartLightTheme.accentGradient)
             }
             .buttonStyle(.plain)
             .disabled(scriptEngine.isRunning)
@@ -111,8 +111,8 @@ struct ScriptEditorView: View {
                     Text("SAVE").font(.system(size: 11, weight: .bold, design: .monospaced))
                 }
                 .padding(.horizontal, 12).padding(.vertical, 5)
-                .background(HueBaseTheme.surface)
-                .overlay(RoundedRectangle(cornerRadius: 3).stroke(HueBaseTheme.border, lineWidth: 1))
+                .background(SmartLightTheme.surface)
+                .overlay(RoundedRectangle(cornerRadius: 3).stroke(SmartLightTheme.border, lineWidth: 1))
                 .cornerRadius(3)
                 .foregroundStyle(Color(white: 0.65))
             }
@@ -130,8 +130,8 @@ struct ScriptEditorView: View {
             .foregroundStyle(Color(white: 0.5))
         }
         .padding(.horizontal, 10).padding(.vertical, 7)
-        .background(HueBaseTheme.surfaceHigh)
-        .overlay(alignment: .bottom) { HueBaseTheme.border.frame(height: 1) }
+        .background(SmartLightTheme.surfaceHigh)
+        .overlay(alignment: .bottom) { SmartLightTheme.border.frame(height: 1) }
     }
 
     private func run() {

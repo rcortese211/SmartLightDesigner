@@ -25,10 +25,10 @@ struct BenchmarkView: View {
 
             var color: Color {
                 switch self {
-                case .excellent: return HueBaseTheme.blue
-                case .good:      return HueBaseTheme.purple
-                case .moderate:  return HueBaseTheme.active
-                case .limited:   return HueBaseTheme.danger
+                case .excellent: return SmartLightTheme.blue
+                case .good:      return SmartLightTheme.purple
+                case .moderate:  return SmartLightTheme.active
+                case .limited:   return SmartLightTheme.danger
                 }
             }
         }
@@ -48,19 +48,19 @@ struct BenchmarkView: View {
             }
         }
         .navigationTitle("Benchmark")
-        .background(HueBaseTheme.background)
+        .background(SmartLightTheme.background)
     }
 
     private var headerSection: some View {
         VStack(spacing: 10) {
-            HueBaseTheme.accentGradient
+            SmartLightTheme.accentGradient
                 .mask(Image(systemName: "gauge.with.needle")
                     .resizable().scaledToFit())
                 .frame(width: 48, height: 48)
 
             Text("DMX Render Benchmark")
                 .font(.system(size: 20, weight: .bold, design: .monospaced))
-                .foregroundStyle(HueBaseTheme.accentGradient)
+                .foregroundStyle(SmartLightTheme.accentGradient)
 
             Text("Measures system DMX rendering throughput and recommends optimal fixture count and universe configuration.")
                 .font(.callout)
@@ -77,13 +77,13 @@ struct BenchmarkView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 8)
-                .background(state == .running ? HueBaseTheme.surface : HueBaseTheme.purple.opacity(0.15))
+                .background(state == .running ? SmartLightTheme.surface : SmartLightTheme.purple.opacity(0.15))
                 .overlay(
                     RoundedRectangle(cornerRadius: 3)
-                        .stroke(HueBaseTheme.purple, lineWidth: 1)
+                        .stroke(SmartLightTheme.purple, lineWidth: 1)
                 )
                 .cornerRadius(3)
-                .foregroundStyle(HueBaseTheme.accentGradient)
+                .foregroundStyle(SmartLightTheme.accentGradient)
             }
             .buttonStyle(.plain)
             .disabled(state == .running)
@@ -94,16 +94,16 @@ struct BenchmarkView: View {
         VStack(spacing: 6) {
             Text(currentTest)
                 .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(HueBaseTheme.accentGradient)
+                .foregroundStyle(SmartLightTheme.accentGradient)
             ProgressView(value: progress)
-                .tint(HueBaseTheme.purple)
+                .tint(SmartLightTheme.purple)
                 .frame(maxWidth: 400)
         }
         .padding(12)
-        .background(HueBaseTheme.surface)
+        .background(SmartLightTheme.surface)
         .overlay(
             RoundedRectangle(cornerRadius: 3)
-                .stroke(HueBaseTheme.border, lineWidth: 1)
+                .stroke(SmartLightTheme.border, lineWidth: 1)
         )
         .cornerRadius(3)
     }
@@ -114,7 +114,7 @@ struct BenchmarkView: View {
             HStack {
                 Text("RESULTS")
                     .font(.system(size: 11, weight: .heavy, design: .monospaced))
-                    .foregroundStyle(HueBaseTheme.accentGradient)
+                    .foregroundStyle(SmartLightTheme.accentGradient)
                     .kerning(1.5)
                 Spacer()
                 gradeTag(r.grade)
@@ -139,21 +139,21 @@ struct BenchmarkView: View {
                 PanelHeader(title: "Recommendations")
                 VStack(spacing: 0) {
                     recommendationRow("Max fixtures at 44 fps", value: "\(r.maxRecommendedFixtures)")
-                    Divider().background(HueBaseTheme.border)
+                    Divider().background(SmartLightTheme.border)
                     recommendationRow("Universes supported", value: "\(r.universesRecommended)")
-                    Divider().background(HueBaseTheme.border)
+                    Divider().background(SmartLightTheme.border)
                     recommendationRow("Target frame rate",
                                       value: r.sustainedOutputFPS >= 40 ? "44 fps (full)" : "30 fps (throttled)")
-                    Divider().background(HueBaseTheme.border)
+                    Divider().background(SmartLightTheme.border)
                     recommendationRow("Effects engine",
                                       value: r.compositeFPS >= 100 ? "All effects available" : "Avoid Sparkle + Strobe together")
                 }
                 .padding(.horizontal, 12)
             }
-            .background(HueBaseTheme.surface)
+            .background(SmartLightTheme.surface)
             .overlay(
                 RoundedRectangle(cornerRadius: 3)
-                    .stroke(HueBaseTheme.border, lineWidth: 1)
+                    .stroke(SmartLightTheme.border, lineWidth: 1)
             )
             .cornerRadius(3)
         }
@@ -164,19 +164,19 @@ struct BenchmarkView: View {
             PanelHeader(title: "What is tested")
             VStack(alignment: .leading, spacing: 0) {
                 infoRow("Effect Rendering",  "Renders all 6 built-in effects across a synthetic 512-fixture set.")
-                Divider().background(HueBaseTheme.border)
+                Divider().background(SmartLightTheme.border)
                 infoRow("Layer Compositing", "Times a full 8-layer composite with all blend modes active.")
-                Divider().background(HueBaseTheme.border)
+                Divider().background(SmartLightTheme.border)
                 infoRow("DMX Engine Rate",   "Runs the live DMX engine for 3 seconds, measures tick frequency.")
-                Divider().background(HueBaseTheme.border)
+                Divider().background(SmartLightTheme.border)
                 infoRow("Output Throughput", "Checks how many universes can be sent at full frame rate.")
             }
             .padding(.horizontal, 12)
         }
-        .background(HueBaseTheme.surface)
+        .background(SmartLightTheme.surface)
         .overlay(
             RoundedRectangle(cornerRadius: 3)
-                .stroke(HueBaseTheme.border, lineWidth: 1)
+                .stroke(SmartLightTheme.border, lineWidth: 1)
         )
         .cornerRadius(3)
         .frame(maxWidth: 520)
@@ -203,7 +203,7 @@ struct BenchmarkView: View {
         VStack(spacing: 4) {
             Image(systemName: icon)
                 .font(.system(size: 18))
-                .foregroundStyle(HueBaseTheme.accentGradient)
+                .foregroundStyle(SmartLightTheme.accentGradient)
             Text(value)
                 .font(.system(.title2, design: .monospaced).bold())
                 .foregroundStyle(.primary)
@@ -214,10 +214,10 @@ struct BenchmarkView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(12)
-        .background(HueBaseTheme.surface)
+        .background(SmartLightTheme.surface)
         .overlay(
             RoundedRectangle(cornerRadius: 3)
-                .stroke(HueBaseTheme.purple.opacity(0.3), lineWidth: 1)
+                .stroke(SmartLightTheme.purple.opacity(0.3), lineWidth: 1)
         )
         .cornerRadius(3)
     }
@@ -230,7 +230,7 @@ struct BenchmarkView: View {
             Spacer()
             Text(value)
                 .font(.system(size: 11, weight: .bold, design: .monospaced))
-                .foregroundStyle(HueBaseTheme.purple)
+                .foregroundStyle(SmartLightTheme.purple)
         }
         .padding(.vertical, 8)
     }
@@ -239,7 +239,7 @@ struct BenchmarkView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
                 .font(.system(size: 11, weight: .bold, design: .monospaced))
-                .foregroundStyle(HueBaseTheme.accentGradient)
+                .foregroundStyle(SmartLightTheme.accentGradient)
             Text(description)
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)

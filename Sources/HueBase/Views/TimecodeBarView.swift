@@ -9,11 +9,11 @@ struct TimecodeBarView: View {
             // Source indicator
             HStack(spacing: 6) {
                 RoundedRectangle(cornerRadius: 1)
-                    .fill(tc.isRunning ? HueBaseTheme.active : Color(white: 0.22))
+                    .fill(tc.isRunning ? SmartLightTheme.active : Color(white: 0.22))
                     .frame(width: 8, height: 8)
                 Text(tc.source.rawValue.uppercased())
                     .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(tc.isRunning ? HueBaseTheme.active : Color(white: 0.38))
+                    .foregroundStyle(tc.isRunning ? SmartLightTheme.active : Color(white: 0.38))
             }
             .padding(.horizontal, 10)
 
@@ -23,7 +23,7 @@ struct TimecodeBarView: View {
             Text(tc.current.description)
                 .font(.system(size: 15, weight: .bold, design: .monospaced))
                 .foregroundStyle(tc.isRunning
-                    ? AnyShapeStyle(HueBaseTheme.accentGradient)
+                    ? AnyShapeStyle(SmartLightTheme.accentGradient)
                     : AnyShapeStyle(Color(white: 0.50)))
                 .padding(.horizontal, 12)
 
@@ -65,14 +65,14 @@ struct TimecodeBarView: View {
             }
         }
         .frame(height: 28)
-        .background(HueBaseTheme.surfaceHigh)
+        .background(SmartLightTheme.surfaceHigh)
         .overlay(alignment: .top) {
             GradientBar(height: 1)
         }
     }
 
     private var divider: some View {
-        HueBaseTheme.border.frame(width: 1).padding(.vertical, 4)
+        SmartLightTheme.border.frame(width: 1).padding(.vertical, 4)
     }
 
     private func transportButton(icon: String, action: @escaping () -> Void) -> some View {
@@ -80,11 +80,11 @@ struct TimecodeBarView: View {
             Image(systemName: icon)
                 .font(.system(size: 10))
                 .frame(width: 22, height: 20)
-                .foregroundStyle(isInternal ? HueBaseTheme.purple : Color(white: 0.38))
-                .background(HueBaseTheme.surface)
+                .foregroundStyle(isInternal ? SmartLightTheme.purple : Color(white: 0.38))
+                .background(SmartLightTheme.surface)
                 .overlay(
                     RoundedRectangle(cornerRadius: 2)
-                        .stroke(HueBaseTheme.border, lineWidth: 1)
+                        .stroke(SmartLightTheme.border, lineWidth: 1)
                 )
                 .cornerRadius(2)
         }

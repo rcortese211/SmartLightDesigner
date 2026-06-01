@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>HueBase</string>
+    <string>SmartLight Designer</string>
     <key>CFBundleIdentifier</key>
-    <string>com.huebase.app</string>
+    <string>com.smartlight.designer</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>CFBundleShortVersionString</key>
@@ -17,7 +17,7 @@
         <true/>
     </dict>
     <key>NSLocalNetworkUsageDescription</key>
-    <string>HueBase needs local network access to discover and control Philips Hue bridges.</string>
+    <string>SmartLight Designer needs local network access to discover and control Philips Hue bridges.</string>
     <key>NSBonjourServices</key>
     <array>
         <string>_hue._tcp</string>

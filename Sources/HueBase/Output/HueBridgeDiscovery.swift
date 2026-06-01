@@ -160,7 +160,7 @@ final class HueBridgeDiscovery {
 
     // MARK: - Pairing
 
-    func pair(bridgeIP: String, appName: String = "HueBase",
+    func pair(bridgeIP: String, appName: String = "SmartLight",
               completion: @escaping (Result<String, Error>) -> Void) {
         guard let url = URL(string: "https://\(bridgeIP)/api") else {
             DispatchQueue.main.async {

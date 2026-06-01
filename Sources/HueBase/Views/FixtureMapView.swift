@@ -217,8 +217,8 @@ struct FixtureMapView: View {
                         width: abs(end.x - start.x), height: abs(end.y - start.y)
                     )
                     Rectangle()
-                        .stroke(HueBaseTheme.active.opacity(0.7), lineWidth: 1)
-                        .background(HueBaseTheme.active.opacity(0.07))
+                        .stroke(SmartLightTheme.active.opacity(0.7), lineWidth: 1)
+                        .background(SmartLightTheme.active.opacity(0.07))
                         .frame(width: rect.width, height: rect.height)
                         .position(x: rect.midX, y: rect.midY)
                         .allowsHitTesting(false)
@@ -293,7 +293,7 @@ struct FixtureMapView: View {
                 }
                 .formStyle(.grouped)
             }
-            .background(HueBaseTheme.surface)
+            .background(SmartLightTheme.surface)
         }
     }
 
@@ -301,7 +301,7 @@ struct FixtureMapView: View {
         LabeledContent(label) {
             HStack(spacing: 6) {
                 Slider(value: value, in: 0...1)
-                    .tint(HueBaseTheme.purple)
+                    .tint(SmartLightTheme.purple)
                 Text(String(format: "%.2f", value.wrappedValue))
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
@@ -481,21 +481,21 @@ struct FixtureMapNode: View {
         if highlightEnabled {
             return isHighlighted ? highlightColor.opacity(0.9) : lowlightColor
         }
-        return isSelected ? HueBaseTheme.active.opacity(0.85) : HueBaseTheme.purple.opacity(0.55)
+        return isSelected ? SmartLightTheme.active.opacity(0.85) : SmartLightTheme.purple.opacity(0.55)
     }
 
     private var strokeColor: Color {
         if highlightEnabled {
             return isHighlighted ? highlightColor : lowlightColor.opacity(0.55)
         }
-        return isSelected ? HueBaseTheme.active : HueBaseTheme.purple
+        return isSelected ? SmartLightTheme.active : SmartLightTheme.purple
     }
 
     private var labelColor: Color {
         if highlightEnabled {
             return isHighlighted ? highlightColor : lowlightColor.opacity(0.7)
         }
-        return isSelected ? HueBaseTheme.active.opacity(0.9) : HueBaseTheme.purple.opacity(0.65)
+        return isSelected ? SmartLightTheme.active.opacity(0.9) : SmartLightTheme.purple.opacity(0.65)
     }
 
     var body: some View {

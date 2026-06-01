@@ -64,7 +64,7 @@ struct ColorListParamRow: View {
                 } label: {
                     Image(systemName: "plus.circle")
                         .font(.system(size: 13))
-                        .foregroundStyle(HueBaseTheme.purple)
+                        .foregroundStyle(SmartLightTheme.purple)
                 }
                 .buttonStyle(.plain)
                 .popover(isPresented: $showAddPicker, arrowEdge: .bottom) {
@@ -81,7 +81,7 @@ struct ColorListParamRow: View {
                             showAddPicker = false
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(HueBaseTheme.purple)
+                        .tint(SmartLightTheme.purple)
                         .padding(.bottom, 8)
                     }
                 }

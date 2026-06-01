@@ -260,16 +260,16 @@ struct SpatialZoneEditor: View {
                 drawGrid(ctx: ctx, size: size)
 
                 ctx.fill(Path(rect),
-                         with: .color(HueBaseTheme.active.opacity(0.15)))
+                         with: .color(SmartLightTheme.active.opacity(0.15)))
 
                 ctx.stroke(Path(rect),
-                           with: .color(HueBaseTheme.active.opacity(0.8)), lineWidth: 1.5)
+                           with: .color(SmartLightTheme.active.opacity(0.8)), lineWidth: 1.5)
 
                 let handleR: CGFloat = 5
                 ctx.fill(Path(ellipseIn: CGRect(x: rect.maxX - handleR * 2,
                                                 y: rect.maxY - handleR * 2,
                                                 width: handleR * 2, height: handleR * 2)),
-                         with: .color(HueBaseTheme.active))
+                         with: .color(SmartLightTheme.active))
 
                 for f in fixtures {
                     let fx = CGFloat(f.positionX) * size.width
@@ -305,7 +305,7 @@ struct SpatialZoneEditor: View {
         }
         .frame(height: 140)
         .clipShape(RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(HueBaseTheme.border, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(SmartLightTheme.border, lineWidth: 1))
     }
 
     private func zoneRect(in size: CGSize) -> CGRect {
