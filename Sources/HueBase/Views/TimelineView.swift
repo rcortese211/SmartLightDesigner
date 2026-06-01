@@ -18,6 +18,13 @@ private let kHeaderWidth:   CGFloat = 144
 private let kEdgeZone:      CGFloat = 8
 private let kMinDuration:   Double  = 0.25
 
+private let kColorPresets: [(name: String, hue: Double)] = [
+    ("Red",    0.00), ("Orange", 0.07), ("Yellow", 0.14),
+    ("Lime",   0.25), ("Green",  0.37), ("Teal",   0.50),
+    ("Blue",   0.60), ("Indigo", 0.68), ("Purple", 0.75),
+    ("Pink",   0.87), ("Rose",   0.94),
+]
+
 struct TimelineView: View {
     @Environment(AppState.self) private var appState
     @State private var pixelsPerSecond: Double = 80.0
@@ -581,6 +588,20 @@ struct TimelineView: View {
             Button("Rename…") {
                 renamingClipID = clip.id
                 renameText = clip.label
+            }
+            Menu("Change Color…") {
+                ForEach(kColorPresets, id: \.name) { preset in
+                    Button {
+                        updateClip(id: clip.id, trackIndex: trackIndex) { $0.colorHue = preset.hue }
+                    } label: {
+                        Label {
+                            Text(preset.name)
+                        } icon: {
+                            Image(systemName: "circle.fill")
+                                .foregroundStyle(Color(hue: preset.hue, saturation: 0.7, brightness: 0.75))
+                        }
+                    }
+                }
             }
             Divider()
             Button("Duplicate") { duplicateClip(clip, trackIndex: trackIndex) }
