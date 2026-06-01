@@ -7,7 +7,8 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "SmartLight",
-            path: "Sources/HueBase"
+            path: "Sources/HueBase",
+            resources: [.process("Assets.xcassets")]
         )
     ]
 )
