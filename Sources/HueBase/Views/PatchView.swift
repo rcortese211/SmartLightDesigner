@@ -128,8 +128,21 @@ struct AddFixtureSheet: View {
                         TextField("", value: $count, formatter: intFormatter)
                             .textFieldStyle(.roundedBorder)
                             .frame(width: 60)
-                        Stepper("", value: $count, in: 1...64).labelsHidden()
+                        Stepper("", value: $count, in: 1...512).labelsHidden()
                     }
+                }
+                if let (msg, isConflict) = universeOverflowWarning {
+                    HStack(alignment: .top, spacing: 6) {
+                        Image(systemName: isConflict
+                              ? "exclamationmark.triangle.fill" : "info.circle")
+                            .foregroundStyle(isConflict ? Color.orange : Color.secondary)
+                            .font(.caption)
+                        Text(msg)
+                            .font(.caption)
+                            .foregroundStyle(isConflict ? Color.orange : Color.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.top, 2)
                 }
             }
             HStack {
@@ -152,21 +165,57 @@ struct AddFixtureSheet: View {
         return f
     }
 
+    private var selectedProfile: FixtureProfile? {
+        guard let id = selectedProfileId else { return nil }
+        return appState.show.fixtureProfiles.first(where: { $0.id == id })
+    }
+
+    // Returns (message, isConflict) when fixtures will bridge into additional universes.
+    private var universeOverflowWarning: (String, Bool)? {
+        guard let profile = selectedProfile, profile.channelCount > 0 else { return nil }
+        var u = universe
+        var addr = startAddress
+        var bridged: Set<Int> = []
+        for _ in 0..<count {
+            if addr + profile.channelCount - 1 > 512 {
+                u += 1
+                addr = 1
+                bridged.insert(u)
+            }
+            addr += profile.channelCount
+        }
+        guard !bridged.isEmpty else { return nil }
+        let sorted = bridged.sorted()
+        let bridgeMsg = "Bridges into \(sorted.map { "Universe \($0 + 1)" }.joined(separator: ", "))."
+        let occupied = sorted.filter { u in appState.show.fixtures.contains { $0.universe == u } }
+        if occupied.isEmpty { return (bridgeMsg, false) }
+        let conflictMsg = "\(occupied.map { "Universe \($0 + 1)" }.joined(separator: ", ")) already \(occupied.count == 1 ? "has" : "have") existing fixtures."
+        return ("\(bridgeMsg) \(conflictMsg)", true)
+    }
+
     private func addFixtures() {
         guard let profileId = selectedProfileId,
               let profile = appState.show.fixtureProfiles.first(where: { $0.id == profileId })
         else { return }
 
+        var currentUniverse = universe
+        var currentAddr = startAddress
+        let totalCount = appState.show.fixtures.count + count
+
         for i in 0..<count {
-            let addr = startAddress + i * profile.channelCount
-            guard addr <= 512 else { break }
+            // Bridge to the next universe if the full fixture doesn't fit
+            if currentAddr + profile.channelCount - 1 > 512 {
+                currentUniverse += 1
+                currentAddr = 1
+            }
             let fixtureName = count > 1 ? "\(name) \(i + 1)" : name
-            let x = Double(appState.show.fixtures.count + i) / max(1, Double(appState.show.fixtures.count + count))
+            let x = Double(appState.show.fixtures.count + i) / max(1.0, Double(totalCount))
             appState.show.fixtures.append(
                 Fixture(name: fixtureName, profileId: profileId,
-                        universe: universe, startAddress: addr,
+                        universe: currentUniverse, startAddress: currentAddr,
                         positionX: x, positionY: 0.5)
             )
+            currentAddr += profile.channelCount
         }
     }
 }

@@ -49,7 +49,9 @@ final class SACNOutput: DMXOutputDriver {
             let port = NWEndpoint.Port(rawValue: config.port) ?? 5568
             endpoint = .hostPort(host: host, port: port)
         } else {
-            let host = NWEndpoint.Host("255.255.255.255")
+            let ip = config.unicastIP.trimmingCharacters(in: .whitespaces).isEmpty
+                ? "255.255.255.255" : config.unicastIP
+            let host = NWEndpoint.Host(ip)
             let port = NWEndpoint.Port(rawValue: config.port) ?? 5568
             endpoint = .hostPort(host: host, port: port)
         }

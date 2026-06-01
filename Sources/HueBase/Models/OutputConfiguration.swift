@@ -25,6 +25,7 @@ struct SACNConfiguration: Codable {
         UniverseMapping(id: UUID(), localUniverse: 0, outputUniverse: 1)
     ]
     var useMulticast: Bool = true
+    var unicastIP: String = ""   // used when useMulticast == false
 }
 
 struct USBDMXConfiguration: Codable {

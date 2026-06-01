@@ -39,9 +39,7 @@ struct OutputSettingsView: View {
         @Bindable var state = appState
         return Form {
             Toggle("Enable Art-Net Output", isOn: $state.show.artNet.enabled)
-                .onChange(of: state.show.artNet.enabled) { _, enabled in
-                    rebuildOutputDrivers()
-                }
+                .onChange(of: state.show.artNet.enabled) { _, _ in rebuildOutputDrivers() }
             if appState.show.artNet.enabled {
                 Section("Network") {
                     LabeledContent("Target IP") {
@@ -56,20 +54,14 @@ struct OutputSettingsView: View {
                 }
                 Section("Universe Mapping") {
                     ForEach($state.show.artNet.universeMappings) { $mapping in
-                        HStack {
-                            Text("Internal \(mapping.localUniverse + 1)")
-                            Image(systemName: "arrow.right")
-                            Text("Art-Net")
-                            TextField("", value: $mapping.outputUniverse, formatter: NumberFormatter())
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 60)
+                        universeMappingRow(local: $mapping.localUniverse,
+                                          output: $mapping.outputUniverse,
+                                          outputLabel: "Art-Net") {
+                            state.show.artNet.universeMappings.removeAll { $0.id == mapping.id }
                         }
                     }
-                    Button("Add Mapping") {
-                        let next = (appState.show.artNet.universeMappings.map(\.localUniverse).max() ?? -1) + 1
-                        appState.show.artNet.universeMappings.append(
-                            UniverseMapping(id: UUID(), localUniverse: next, outputUniverse: next)
-                        )
+                    Button { addArtNetMapping() } label: {
+                        Label("Add Mapping", systemImage: "plus")
                     }
                 }
             }
@@ -89,24 +81,79 @@ struct OutputSettingsView: View {
                             .textFieldStyle(.roundedBorder)
                     }
                     LabeledContent("Priority") {
-                        Stepper("\(state.show.sACN.priority)", value: $state.show.sACN.priority, in: 0...200)
+                        Stepper("\(state.show.sACN.priority)", value: $state.show.sACN.priority,
+                                in: 0...200)
                     }
                     Toggle("Use Multicast", isOn: $state.show.sACN.useMulticast)
+                        .onChange(of: state.show.sACN.useMulticast) { _, _ in rebuildOutputDrivers() }
+                    if !state.show.sACN.useMulticast {
+                        LabeledContent("Unicast Destination") {
+                            TextField("192.168.1.100", text: $state.show.sACN.unicastIP)
+                                .textFieldStyle(.roundedBorder)
+                        }
+                        Text("All universes will be unicast to this IP. Toggle output off/on after changing the address.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 Section("Universe Mapping") {
                     ForEach($state.show.sACN.universeMappings) { $mapping in
-                        HStack {
-                            Text("Internal \(mapping.localUniverse + 1)")
-                            Image(systemName: "arrow.right")
-                            Text("sACN Universe")
-                            TextField("", value: $mapping.outputUniverse, formatter: NumberFormatter())
-                                .textFieldStyle(.roundedBorder).frame(width: 60)
+                        universeMappingRow(local: $mapping.localUniverse,
+                                          output: $mapping.outputUniverse,
+                                          outputLabel: "sACN") {
+                            state.show.sACN.universeMappings.removeAll { $0.id == mapping.id }
                         }
+                    }
+                    Button { addSACNMapping() } label: {
+                        Label("Add Mapping", systemImage: "plus")
                     }
                 }
             }
         }
         .formStyle(.grouped)
+    }
+
+    // Shared row: [Internal ____] → [Label ____] [trash]
+    private func universeMappingRow(local: Binding<Int>, output: Binding<Int>,
+                                    outputLabel: String, onDelete: @escaping () -> Void) -> some View {
+        HStack(spacing: 6) {
+            Text("Internal")
+                .foregroundStyle(.secondary)
+                .fixedSize()
+            TextField("", value: local, formatter: universeFormatter)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 54)
+            Image(systemName: "arrow.right")
+                .foregroundStyle(.secondary)
+                .font(.system(size: 11))
+            Text(outputLabel)
+                .foregroundStyle(.secondary)
+                .fixedSize()
+            TextField("", value: output, formatter: universeFormatter)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 54)
+            Spacer()
+            Button(action: onDelete) {
+                Image(systemName: "trash")
+                    .foregroundStyle(Color.red.opacity(0.7))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func addArtNetMapping() {
+        let next = (appState.show.artNet.universeMappings.map(\.localUniverse).max() ?? -1) + 1
+        appState.show.artNet.universeMappings.append(
+            UniverseMapping(id: UUID(), localUniverse: next, outputUniverse: next)
+        )
+    }
+
+    private func addSACNMapping() {
+        let nextLocal = (appState.show.sACN.universeMappings.map(\.localUniverse).max() ?? -1) + 1
+        let nextOutput = (appState.show.sACN.universeMappings.map(\.outputUniverse).max() ?? 0) + 1
+        appState.show.sACN.universeMappings.append(
+            UniverseMapping(id: UUID(), localUniverse: nextLocal, outputUniverse: nextOutput)
+        )
     }
 
     private var usbTab: some View {
@@ -512,6 +559,13 @@ struct OutputSettingsView: View {
         let f = NumberFormatter()
         f.allowsFloats = false
         f.minimum = 1; f.maximum = 65535
+        return f
+    }
+
+    private var universeFormatter: NumberFormatter {
+        let f = NumberFormatter()
+        f.allowsFloats = false
+        f.minimum = 0; f.maximum = 32767
         return f
     }
 }
