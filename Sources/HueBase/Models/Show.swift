@@ -1,5 +1,15 @@
 import Foundation
 
+struct NamedSpatialZone: Codable, Identifiable {
+    let id: UUID
+    var name: String
+    var zone: SpatialZone
+
+    init(id: UUID = UUID(), name: String, zone: SpatialZone) {
+        self.id = id; self.name = name; self.zone = zone
+    }
+}
+
 struct Show: Codable {
     var name: String = ""
     var fixtureProfiles: [FixtureProfile] = []
@@ -17,6 +27,7 @@ struct Show: Codable {
     var savedScripts: [SavedScript] = []
     var timeline: Timeline = Timeline()
     var audio: AudioConfiguration = AudioConfiguration()
+    var zoneLibrary: [NamedSpatialZone] = []
     var notes: String = ""
     var createdAt: Date = Date()
     var modifiedAt: Date = Date()

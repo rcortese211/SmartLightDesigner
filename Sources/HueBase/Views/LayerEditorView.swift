@@ -4,6 +4,9 @@ struct LayerEditorView: View {
     @Binding var layer: Layer
     @Environment(AppState.self) private var appState
 
+    @State private var showZoneSave = false
+    @State private var zoneSaveName = ""
+
     private var effectDefs: [EffectParameterDefinition] {
         EffectRegistry.shared.effect(for: layer.effectId)?.parameterDefinitions ?? []
     }
@@ -94,11 +97,69 @@ struct LayerEditorView: View {
                             .monospacedDigit().frame(width: 40)
                     }
                 }
-                Button("Reset to Full Canvas") {
-                    layer.zone = SpatialZone()
+
+                HStack(spacing: 8) {
+                    Button("Reset") { layer.zone = SpatialZone() }
+                        .buttonStyle(.bordered)
+                        .disabled(layer.zone.isFullCanvas)
+                    Spacer()
+                    if !appState.show.zoneLibrary.isEmpty {
+                        Menu("Apply…") {
+                            ForEach(appState.show.zoneLibrary) { named in
+                                Button(named.name) { layer.zone = named.zone }
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    Button(showZoneSave ? "Cancel" : "Save…") {
+                        showZoneSave.toggle()
+                        if !showZoneSave { zoneSaveName = "" }
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
-                .disabled(layer.zone.isFullCanvas)
+
+                if showZoneSave {
+                    HStack(spacing: 8) {
+                        TextField("Zone name", text: $zoneSaveName)
+                            .textFieldStyle(.roundedBorder)
+                        Button("Save") {
+                            appState.show.zoneLibrary.append(
+                                NamedSpatialZone(name: zoneSaveName, zone: layer.zone))
+                            zoneSaveName = ""
+                            showZoneSave = false
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(zoneSaveName.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                }
+            }
+
+            if !appState.show.zoneLibrary.isEmpty {
+                Section("Zone Library") {
+                    ForEach(appState.show.zoneLibrary) { named in
+                        HStack(spacing: 8) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(named.name)
+                                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                Text("\(Int(named.zone.width * 100))%×\(Int(named.zone.height * 100))% @ (\(String(format: "%.2f", named.zone.x)), \(String(format: "%.2f", named.zone.y)))")
+                                    .font(.system(size: 9, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button("Apply") { layer.zone = named.zone }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                        }
+                        .contextMenu {
+                            Button("Apply to Layer") { layer.zone = named.zone }
+                            Divider()
+                            Button("Delete", role: .destructive) {
+                                appState.show.zoneLibrary.removeAll { $0.id == named.id }
+                            }
+                        }
+                    }
+                    .onDelete { appState.show.zoneLibrary.remove(atOffsets: $0) }
+                }
             }
         }
         .formStyle(.grouped)
@@ -183,82 +244,68 @@ struct SpatialZoneEditor: View {
     @Binding var zone: SpatialZone
     let fixtures: [Fixture]
 
-    @State private var dragStart: CGPoint? = nil
     @State private var dragStartZone: SpatialZone? = nil
     @State private var dragType: ZoneDragType = .none
 
     private enum ZoneDragType { case none, move, resizeSE }
 
     var body: some View {
-        Canvas { ctx, size in
-            let rect = zoneRect(in: size)
+        GeometryReader { geo in
+            let sz = geo.size
+            Canvas { ctx, size in
+                let rect = zoneRect(in: size)
 
-            // Background grid
-            ctx.fill(Path(CGRect(origin: .zero, size: size)),
-                     with: .color(Color(white: 0.08)))
-            drawGrid(ctx: ctx, size: size)
+                ctx.fill(Path(CGRect(origin: .zero, size: size)),
+                         with: .color(Color(white: 0.08)))
+                drawGrid(ctx: ctx, size: size)
 
-            // Zone fill
-            ctx.fill(Path(rect),
-                     with: .color(HueBaseTheme.active.opacity(0.15)))
+                ctx.fill(Path(rect),
+                         with: .color(HueBaseTheme.active.opacity(0.15)))
 
-            // Zone border
-            var strokePath = Path(rect)
-            ctx.stroke(strokePath, with: .color(HueBaseTheme.active.opacity(0.8)), lineWidth: 1.5)
+                ctx.stroke(Path(rect),
+                           with: .color(HueBaseTheme.active.opacity(0.8)), lineWidth: 1.5)
 
-            // Resize handle (SE corner)
-            let handleR: CGFloat = 5
-            let hx = rect.maxX - handleR
-            let hy = rect.maxY - handleR
-            ctx.fill(Path(ellipseIn: CGRect(x: hx - handleR, y: hy - handleR,
-                                            width: handleR * 2, height: handleR * 2)),
-                     with: .color(HueBaseTheme.active))
+                let handleR: CGFloat = 5
+                ctx.fill(Path(ellipseIn: CGRect(x: rect.maxX - handleR * 2,
+                                                y: rect.maxY - handleR * 2,
+                                                width: handleR * 2, height: handleR * 2)),
+                         with: .color(HueBaseTheme.active))
 
-            // Fixture dots
-            for f in fixtures {
-                let fx = CGFloat(f.positionX) * size.width
-                let fy = CGFloat(f.positionY) * size.height
-                let inZone = f.positionX >= zone.x && f.positionX < zone.x + zone.width &&
-                             f.positionY >= zone.y && f.positionY < zone.y + zone.height
-                let dotColor: Color = inZone ? .white : Color(white: 0.3)
-                ctx.fill(Path(ellipseIn: CGRect(x: fx - 2.5, y: fy - 2.5, width: 5, height: 5)),
-                         with: .color(dotColor))
+                for f in fixtures {
+                    let fx = CGFloat(f.positionX) * size.width
+                    let fy = CGFloat(f.positionY) * size.height
+                    let inZone = f.positionX >= zone.x && f.positionX < zone.x + zone.width &&
+                                 f.positionY >= zone.y && f.positionY < zone.y + zone.height
+                    ctx.fill(Path(ellipseIn: CGRect(x: fx - 2.5, y: fy - 2.5, width: 5, height: 5)),
+                             with: .color(inZone ? .white : Color(white: 0.3)))
+                }
             }
+            .gesture(
+                DragGesture(minimumDistance: 1)
+                    .onChanged { value in
+                        if dragStartZone == nil {
+                            dragStartZone = zone
+                            dragType = detectDragType(at: value.startLocation, size: sz)
+                        }
+                        guard let startZone = dragStartZone else { return }
+                        let dx = Double(value.translation.width / sz.width)
+                        let dy = Double(value.translation.height / sz.height)
+                        switch dragType {
+                        case .move:
+                            zone.x = min(clamp01(startZone.x + dx), 1 - zone.width)
+                            zone.y = min(clamp01(startZone.y + dy), 1 - zone.height)
+                        case .resizeSE:
+                            zone.width  = min(max(0.05, startZone.width + dx),  1 - zone.x)
+                            zone.height = min(max(0.05, startZone.height + dy), 1 - zone.y)
+                        case .none: break
+                        }
+                    }
+                    .onEnded { _ in dragStartZone = nil; dragType = .none }
+            )
         }
         .frame(height: 140)
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .overlay(RoundedRectangle(cornerRadius: 6).stroke(HueBaseTheme.border, lineWidth: 1))
-        .gesture(
-            DragGesture(minimumDistance: 1)
-                .onChanged { value in
-                    if dragStart == nil {
-                        dragStart = value.startLocation
-                        dragStartZone = zone
-                        dragType = detectDragType(at: value.startLocation, size: CGSize(width: 200, height: 140))
-                    }
-                    guard let startZone = dragStartZone else { return }
-                    let dx = Double(value.translation.width / 200)
-                    let dy = Double(value.translation.height / 140)
-                    switch dragType {
-                    case .move:
-                        zone.x = clamp01(startZone.x + dx)
-                        zone.y = clamp01(startZone.y + dy)
-                        zone.x = min(zone.x, 1 - zone.width)
-                        zone.y = min(zone.y, 1 - zone.height)
-                    case .resizeSE:
-                        let newW = max(0.05, startZone.width + dx)
-                        let newH = max(0.05, startZone.height + dy)
-                        zone.width  = min(newW, 1 - zone.x)
-                        zone.height = min(newH, 1 - zone.y)
-                    case .none: break
-                    }
-                }
-                .onEnded { _ in
-                    dragStart = nil
-                    dragStartZone = nil
-                    dragType = .none
-                }
-        )
     }
 
     private func zoneRect(in size: CGSize) -> CGRect {
@@ -270,7 +317,7 @@ struct SpatialZoneEditor: View {
 
     private func detectDragType(at point: CGPoint, size: CGSize) -> ZoneDragType {
         let rect = zoneRect(in: size)
-        let handleArea = CGRect(x: rect.maxX - 14, y: rect.maxY - 14, width: 14, height: 14)
+        let handleArea = CGRect(x: rect.maxX - 16, y: rect.maxY - 16, width: 16, height: 16)
         if handleArea.contains(point) { return .resizeSE }
         if rect.contains(point) { return .move }
         return .none
@@ -281,13 +328,11 @@ struct SpatialZoneEditor: View {
         var path = Path()
         for i in 1..<cols {
             let x = CGFloat(i) / CGFloat(cols) * size.width
-            path.move(to: CGPoint(x: x, y: 0))
-            path.addLine(to: CGPoint(x: x, y: size.height))
+            path.move(to: CGPoint(x: x, y: 0)); path.addLine(to: CGPoint(x: x, y: size.height))
         }
         for i in 1..<rows {
             let y = CGFloat(i) / CGFloat(rows) * size.height
-            path.move(to: CGPoint(x: 0, y: y))
-            path.addLine(to: CGPoint(x: size.width, y: y))
+            path.move(to: CGPoint(x: 0, y: y)); path.addLine(to: CGPoint(x: size.width, y: y))
         }
         ctx.stroke(path, with: .color(Color(white: 0.18)), lineWidth: 0.5)
     }

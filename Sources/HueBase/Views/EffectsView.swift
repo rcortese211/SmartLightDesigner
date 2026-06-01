@@ -225,7 +225,7 @@ struct EffectsView: View {
     private var layerColumn: some View {
         HSplitView {
             paletteLayerStack
-                .frame(minWidth: 70, maxWidth: 120)
+                .frame(minWidth: 100, maxWidth: 180)
             if let binding = selectedLayerBinding {
                 LayerEditorView(layer: binding)
             } else {
