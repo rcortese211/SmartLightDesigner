@@ -198,3 +198,42 @@ struct Layer: Codable, Identifiable {
         self.zone = zone
     }
 }
+
+// MARK: - Blend math shared by DMXEngine and visualiser
+
+extension DMXBlendMode {
+    /// Raw blend of src over dst (0-1 range, no opacity applied).
+    func blend(src s: Double, dst d: Double) -> Double {
+        switch self {
+        case .normal:       return s
+        case .override:     return s > 0 ? s : d
+        case .darken:       return min(d, s)
+        case .multiply:     return d * s
+        case .colorBurn:    return s > 0 ? max(0, 1 - (1 - d) / s) : 0
+        case .linearBurn:   return max(0, d + s - 1)
+        case .lighten:      return max(d, s)
+        case .screen:       return 1 - (1 - d) * (1 - s)
+        case .colorDodge:   return s < 1 ? min(1, d / (1 - s)) : 1
+        case .linearDodge:  return min(1, d + s)
+        case .overlay:      return d < 0.5 ? 2*d*s : 1 - 2*(1-d)*(1-s)
+        case .softLight:
+            let g = d < 0.25 ? ((16*d - 12)*d + 4)*d : sqrt(d)
+            return s < 0.5 ? d - (1 - 2*s)*d*(1 - d) : d + (2*s - 1)*(g - d)
+        case .hardLight:    return s < 0.5 ? 2*d*s : 1 - 2*(1-d)*(1-s)
+        case .vividLight:   return s < 0.5 ? (s > 0 ? max(0, 1-(1-d)/(2*s)) : 0) : (s < 1 ? min(1, d/(2*(1-s))) : 1)
+        case .linearLight:  return max(0, min(1, d + 2*s - 1))
+        case .pinLight:     return s < 0.5 ? min(d, 2*s) : max(d, 2*s - 1)
+        case .hardMix:      return (s < 0.5 ? max(0, 1-(1-d)/(2*s)) : min(1, d/(2*(1-s)))) < 0.5 ? 0 : 1
+        case .difference:   return abs(d - s)
+        case .exclusion:    return d + s - 2*d*s
+        case .subtract:     return max(0, d - s)
+        case .divide:       return s > 0 ? min(1, d / s) : 1
+        case .negativeMask: return s > 0 ? 0 : d
+        }
+    }
+
+    /// Blend src over dst with opacity, returning the final 0-1 value.
+    func composite(src s: Double, dst d: Double, opacity a: Double) -> Double {
+        blend(src: s, dst: d) * a + d * (1 - a)
+    }
+}

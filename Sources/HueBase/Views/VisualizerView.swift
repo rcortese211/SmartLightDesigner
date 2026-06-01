@@ -287,9 +287,10 @@ struct VisualizerView: View {
                     let ch = effect.render(fixture: vf, profile: profile,
                                            parameters: params, time: time, speed: layer.speed)
                     let a = layer.opacity
-                    ar += (Double(ch[0] ?? 0) / 255.0 - ar) * a
-                    ag += (Double(ch[1] ?? 0) / 255.0 - ag) * a
-                    ab += (Double(ch[2] ?? 0) / 255.0 - ab) * a
+                    let mode = layer.blendMode
+                    ar = mode.composite(src: Double(ch[0] ?? 0) / 255.0, dst: ar, opacity: a)
+                    ag = mode.composite(src: Double(ch[1] ?? 0) / 255.0, dst: ag, opacity: a)
+                    ab = mode.composite(src: Double(ch[2] ?? 0) / 255.0, dst: ab, opacity: a)
                 }
 
                 // Render Program B
@@ -301,9 +302,10 @@ struct VisualizerView: View {
                     let ch = effect.render(fixture: vf, profile: profile,
                                            parameters: params, time: time, speed: layer.speed)
                     let a = layer.opacity
-                    br += (Double(ch[0] ?? 0) / 255.0 - br) * a
-                    bg += (Double(ch[1] ?? 0) / 255.0 - bg) * a
-                    bb += (Double(ch[2] ?? 0) / 255.0 - bb) * a
+                    let mode = layer.blendMode
+                    br = mode.composite(src: Double(ch[0] ?? 0) / 255.0, dst: br, opacity: a)
+                    bg = mode.composite(src: Double(ch[1] ?? 0) / 255.0, dst: bg, opacity: a)
+                    bb = mode.composite(src: Double(ch[2] ?? 0) / 255.0, dst: bb, opacity: a)
                 }
 
                 // Crossfade A → B
@@ -432,9 +434,10 @@ struct VisualizerView: View {
             let ch = effect.render(fixture: fixture, profile: profile,
                                    parameters: params, time: time, speed: layer.speed)
             let a = layer.opacity
-            r += (Double(ch[0] ?? 0) / 255.0 - r) * a
-            g += (Double(ch[1] ?? 0) / 255.0 - g) * a
-            b += (Double(ch[2] ?? 0) / 255.0 - b) * a
+            let mode = layer.blendMode
+            r = mode.composite(src: Double(ch[0] ?? 0) / 255.0, dst: r, opacity: a)
+            g = mode.composite(src: Double(ch[1] ?? 0) / 255.0, dst: g, opacity: a)
+            b = mode.composite(src: Double(ch[2] ?? 0) / 255.0, dst: b, opacity: a)
         }
         return Color(red: r, green: g, blue: b)
     }
