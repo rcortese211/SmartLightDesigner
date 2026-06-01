@@ -84,21 +84,42 @@ struct OutputSettingsView: View {
                             in: 0...200)
                 }
                 Toggle("Use Multicast", isOn: $state.show.sACN.useMulticast)
-                if !state.show.sACN.useMulticast {
-                    Text("Enter a unicast destination IP per universe below.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            }
+            if !state.show.sACN.useMulticast {
+                Section("Unicast Destinations") {
+                    if state.show.sACN.unicastDestinations.isEmpty {
+                        Text("No destinations added — packets will fall back to broadcast.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(state.show.sACN.unicastDestinations.indices, id: \.self) { idx in
+                        HStack(spacing: 8) {
+                            TextField("192.168.1.100", text: Binding(
+                                get: { state.show.sACN.unicastDestinations[idx] },
+                                set: { state.show.sACN.unicastDestinations[idx] = $0 }
+                            ))
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(size: 12, design: .monospaced))
+                            Button {
+                                state.show.sACN.unicastDestinations.remove(at: idx)
+                            } label: {
+                                Image(systemName: "trash").foregroundStyle(Color.red.opacity(0.7))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    Button {
+                        state.show.sACN.unicastDestinations.append("")
+                    } label: {
+                        Label("Add Destination", systemImage: "plus")
+                    }
                 }
             }
             Section("Universe Mapping") {
                 ForEach($state.show.sACN.universeMappings) { $mapping in
-                    universeMappingRow(
-                        local: $mapping.localUniverse,
-                        output: $mapping.outputUniverse,
-                        outputLabel: "sACN",
-                        unicastIP: $mapping.unicastIP,
-                        showUnicastField: !state.show.sACN.useMulticast
-                    ) {
+                    universeMappingRow(local: $mapping.localUniverse,
+                                      output: $mapping.outputUniverse,
+                                      outputLabel: "sACN") {
                         state.show.sACN.universeMappings.removeAll { $0.id == mapping.id }
                     }
                 }
@@ -112,54 +133,34 @@ struct OutputSettingsView: View {
     }
 
     // Shared mapping row: [Internal ____] → [Label ____] [trash]
-    // When showUnicastField is true an indented IP field appears below the numbers row.
     private func universeMappingRow(
         local: Binding<Int>,
         output: Binding<Int>,
         outputLabel: String,
-        unicastIP: Binding<String>? = nil,
-        showUnicastField: Bool = false,
         onDelete: @escaping () -> Void
     ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Text("Internal")
-                    .foregroundStyle(.secondary)
-                    .fixedSize()
-                TextField("", value: local, formatter: universeFormatter)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 54)
-                Image(systemName: "arrow.right")
-                    .foregroundStyle(.secondary)
-                    .font(.system(size: 11))
-                Text(outputLabel)
-                    .foregroundStyle(.secondary)
-                    .fixedSize()
-                TextField("", value: output, formatter: universeFormatter)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 54)
-                Spacer()
-                Button(action: onDelete) {
-                    Image(systemName: "trash")
-                        .foregroundStyle(Color.red.opacity(0.7))
-                }
-                .buttonStyle(.plain)
+        HStack(spacing: 6) {
+            Text("Internal")
+                .foregroundStyle(.secondary)
+                .fixedSize()
+            TextField("", value: local, formatter: universeFormatter)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 54)
+            Image(systemName: "arrow.right")
+                .foregroundStyle(.secondary)
+                .font(.system(size: 11))
+            Text(outputLabel)
+                .foregroundStyle(.secondary)
+                .fixedSize()
+            TextField("", value: output, formatter: universeFormatter)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 54)
+            Spacer()
+            Button(action: onDelete) {
+                Image(systemName: "trash")
+                    .foregroundStyle(Color.red.opacity(0.7))
             }
-            if showUnicastField, let ip = unicastIP {
-                HStack(spacing: 6) {
-                    Image(systemName: "arrow.turn.down.right")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
-                    Text("Unicast to:")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize()
-                    TextField("192.168.1.100", text: ip)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 11, design: .monospaced))
-                }
-                .padding(.leading, 16)
-            }
+            .buttonStyle(.plain)
         }
     }
 

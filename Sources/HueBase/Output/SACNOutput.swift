@@ -5,7 +5,8 @@ import Network
 final class SACNOutput: DMXOutputDriver {
     var isEnabled: Bool
     var config: SACNConfiguration
-    private var connections: [Int: NWConnection] = [:]  // universe -> connection
+    // output universe → one connection per destination (multicast: 1; unicast: N)
+    private var connections: [Int: [NWConnection]] = [:]
     private var sequence: UInt8 = 0
 
     // sACN source CID — fixed per session
@@ -18,42 +19,47 @@ final class SACNOutput: DMXOutputDriver {
 
     func start() {}
     func stop() {
-        connections.values.forEach { $0.cancel() }
+        connections.values.flatMap { $0 }.forEach { $0.cancel() }
         connections.removeAll()
     }
 
     func send(universe: Int, values: [UInt8]) {
         guard isEnabled else { return }
 
-        let mapping = config.universeMappings.first(where: { $0.localUniverse == universe })
-        let outputUniverse = mapping?.outputUniverse ?? universe
+        let outputUniverse = config.universeMappings
+            .first(where: { $0.localUniverse == universe })?.outputUniverse ?? universe
 
         if connections[outputUniverse] == nil {
-            connections[outputUniverse] = makeConnection(universe: outputUniverse, mapping: mapping)
+            connections[outputUniverse] = makeConnections(universe: outputUniverse)
         }
-        guard let conn = connections[outputUniverse] else { return }
+        guard let conns = connections[outputUniverse], !conns.isEmpty else { return }
 
         sequence = sequence &+ 1
         let packet = buildSACNPacket(universe: outputUniverse, sequence: sequence, values: values)
-        conn.send(content: packet, completion: .idempotent)
+        for conn in conns {
+            conn.send(content: packet, completion: .idempotent)
+        }
     }
 
-    private func makeConnection(universe: Int, mapping: UniverseMapping?) -> NWConnection {
+    // Builds one connection per destination. Multicast → one connection to 239.255.X.Y.
+    // Unicast → one connection per entry in unicastDestinations; falls back to broadcast if empty.
+    private func makeConnections(universe: Int) -> [NWConnection] {
         let port = NWEndpoint.Port(rawValue: config.port) ?? 5568
-        let endpoint: NWEndpoint
+        func make(_ host: String) -> NWConnection {
+            let c = NWConnection(to: .hostPort(host: NWEndpoint.Host(host), port: port), using: .udp)
+            c.start(queue: .global(qos: .userInteractive))
+            return c
+        }
         if config.useMulticast {
-            // sACN multicast: 239.255.X.Y where X = universe high byte, Y = universe low byte
             let hi = (universe >> 8) & 0xFF
             let lo = universe & 0xFF
-            endpoint = .hostPort(host: NWEndpoint.Host("239.255.\(hi).\(lo)"), port: port)
+            return [make("239.255.\(hi).\(lo)")]
         } else {
-            let ip = mapping?.unicastIP.trimmingCharacters(in: .whitespaces) ?? ""
-            let dest = ip.isEmpty ? "255.255.255.255" : ip
-            endpoint = .hostPort(host: NWEndpoint.Host(dest), port: port)
+            let dests = config.unicastDestinations
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+            return dests.isEmpty ? [make("255.255.255.255")] : dests.map { make($0) }
         }
-        let conn = NWConnection(to: endpoint, using: .udp)
-        conn.start(queue: .global(qos: .userInteractive))
-        return conn
     }
 
     private func buildSACNPacket(universe: Int, sequence: UInt8, values: [UInt8]) -> Data {
