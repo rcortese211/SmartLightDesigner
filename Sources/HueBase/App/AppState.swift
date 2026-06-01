@@ -61,6 +61,7 @@ final class AppState {
         tl.appState = self
         loadAutosave()
         if show.fixtureProfiles.isEmpty { setupDefaultProfiles() }
+        if show.effectFolders.isEmpty   { seedDefaultEffectFolders() }
         setupOSCHandlers()
         setupTimecodeCallbacks()
     }
@@ -259,6 +260,7 @@ final class AppState {
     func newShow() {
         show = Show()
         setupDefaultProfiles()
+        seedDefaultEffectFolders()
         selectedFixtureIDs = []
         selectedLayerID = nil
         selectedCueID = nil
