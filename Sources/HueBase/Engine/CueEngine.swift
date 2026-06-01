@@ -4,6 +4,7 @@ import Observation
 @Observable
 final class CueEngine {
     var cues: [Cue] = []
+    var effectFolders: [EffectFolder] = []
     var currentIndex: Int = -1
 
     // Active layers fed into DMXEngine each tick.
@@ -54,8 +55,19 @@ final class CueEngine {
         followTimer = nil
 
         let cue = cues[index]
-        fadeStartLayers = activeLayers ?? cue.layerSnapshot
-        fadeTargetLayers = cue.layerSnapshot
+
+        // Resolve target layers: palette ref wins over the snapshot if the palette still exists
+        let targetLayers: [Layer]
+        if let ref = cue.paletteRef,
+           let folder = effectFolders.first(where: { $0.id == ref.folderID }),
+           let palette = folder.palettes.first(where: { $0.id == ref.paletteID }) {
+            targetLayers = palette.layers
+        } else {
+            targetLayers = cue.layerSnapshot
+        }
+
+        fadeStartLayers = activeLayers ?? targetLayers
+        fadeTargetLayers = targetLayers
         fadeDuration = cue.fadeInTime
         fadeStartTime = CACurrentMediaTime()
         isFading = fadeDuration > 0

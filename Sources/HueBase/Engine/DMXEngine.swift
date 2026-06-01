@@ -47,6 +47,7 @@ final class DMXEngine {
     func start(show: Show) {
         self.show = show
         cueEngine.cues = show.cues
+        cueEngine.effectFolders = show.effectFolders
         startTime = Date().timeIntervalSinceReferenceDate
         let interval = 1.0 / 44.0
         timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
@@ -59,6 +60,7 @@ final class DMXEngine {
     func update(show: Show) {
         self.show = show
         cueEngine.cues = show.cues
+        cueEngine.effectFolders = show.effectFolders
     }
 
     func stop() {
@@ -81,9 +83,9 @@ final class DMXEngine {
         case .effects:
             aLayers = show.layers
         case .cues:
-            aLayers = cueEngine.activeLayers ?? show.layers
+            aLayers = cueEngine.activeLayers ?? []
         case .timeline:
-            aLayers = playbackLayers ?? show.layers
+            aLayers = playbackLayers ?? []
         }
 
         if crossfade <= 0.001 {
