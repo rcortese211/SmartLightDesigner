@@ -127,6 +127,15 @@ extension ParameterValue: Codable {
     }
 }
 
+struct SpatialZone: Codable, Equatable {
+    var x: Double = 0
+    var y: Double = 0
+    var width: Double = 1
+    var height: Double = 1
+
+    var isFullCanvas: Bool { x == 0 && y == 0 && width == 1 && height == 1 }
+}
+
 struct Layer: Codable, Identifiable {
     let id: UUID
     var name: String
@@ -137,6 +146,7 @@ struct Layer: Codable, Identifiable {
     var speed: Double           // 1.0 = normal
     var parameters: [String: ParameterValue]
     var fixtureIds: [UUID]      // empty = apply to all fixtures
+    var zone: SpatialZone       // normalized 0-1 region; (0,0,1,1) = full canvas
 
     init(
         id: UUID = UUID(),
@@ -147,7 +157,8 @@ struct Layer: Codable, Identifiable {
         blendMode: DMXBlendMode = .normal,
         speed: Double = 1.0,
         parameters: [String: ParameterValue] = [:],
-        fixtureIds: [UUID] = []
+        fixtureIds: [UUID] = [],
+        zone: SpatialZone = SpatialZone()
     ) {
         self.id = id
         self.name = name
@@ -158,5 +169,6 @@ struct Layer: Codable, Identifiable {
         self.speed = speed
         self.parameters = parameters
         self.fixtureIds = fixtureIds
+        self.zone = zone
     }
 }

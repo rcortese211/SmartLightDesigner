@@ -116,7 +116,19 @@ final class DMXEngine {
             }
             for fixture in fixtures {
                 guard let profile = show.profile(for: fixture) else { continue }
-                let rendered = effect.render(fixture: fixture, profile: profile,
+                let effectFixture: Fixture
+                if layer.zone.isFullCanvas {
+                    effectFixture = fixture
+                } else {
+                    let z = layer.zone
+                    guard fixture.positionX >= z.x && fixture.positionX < z.x + z.width &&
+                          fixture.positionY >= z.y && fixture.positionY < z.y + z.height else { continue }
+                    var f = fixture
+                    f.positionX = (fixture.positionX - z.x) / z.width
+                    f.positionY = (fixture.positionY - z.y) / z.height
+                    effectFixture = f
+                }
+                let rendered = effect.render(fixture: effectFixture, profile: profile,
                                              parameters: effectParams, time: time, speed: layer.speed)
                 guard var universe = data[fixture.universe] else { continue }
                 composite(rendered, into: &universe,
